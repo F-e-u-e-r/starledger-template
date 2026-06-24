@@ -1,0 +1,52 @@
+name: AI operational state
+
+# TRUSTED state writer. The classifier operational state on the
+# `starledger-ai-state` branch is written ONLY here — never by an executor. It
+# runs from the protected default branch (scheduled / manual), checks out `main`,
+# and runs the deterministic planner with --save-state, which discovers READMEs
+# (content-free OID probes), prunes removed stars, refreshes the cache, and
+# commit-on-change pushes the state. It calls no model and processes no candidate.
+on:
+  # Scheduled triggers are disabled in the template until you set secrets.
+  # Uncomment to re-enable (see docs/setup/), and run once manually first:
+  # schedule:
+  #   - cron: '17 4 * * *' # daily, off-peak
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-state
+  cancel-in-progress: false
+
+jobs:
+  reconcile-state:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: configure git identity for the state commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Skip cleanly until the canonical dataset exists (first sync hasn't run yet).
+      - name: refresh classifier operational state
+        if: ${{ hashFiles('stars.json', 'dataset-meta.json') != '' }}
+        env:
+          STAR_SYNC_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p .ai-runs
+          node --import tsx packages/classifier/src/cli.ts plan \
+            --out .ai-runs/state-manifest.json \
+            --current ai-annotations.json \
+            --save-state

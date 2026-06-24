@@ -1,0 +1,25 @@
+# Exporter configuration (P0). Copy to config.yaml and adjust.
+# The token is NOT configured here — it is read from the STAR_SYNC_TOKEN
+# environment variable (a fine-grained PAT with `Starring: read`, read-only,
+# WITHOUT write access to this repository).
+
+# GitHub login to export stars for. null = derive from the authenticated viewer
+# (recommended; the token owner is the source of truth).
+username: null
+
+# Batch size for nodes(ids:) hydration in REST-fallback mode (P0.3+).
+# Tunable, NOT an API contract. GraphQL connection `first` is capped at 100.
+hydrate_batch_size: 75
+
+# If more than this fraction of repos fail hydration, the whole run is treated
+# as degraded and is NOT published (P0.5).
+max_degraded_ratio: 0.05
+
+# Safety valve: refuse to publish an empty dataset over a non-empty previous one
+# unless explicitly allowed (P0.5).
+allow_empty: false
+
+output:
+  stars: stars.json # canonical dataset — committed, changes only on content hash change
+  dataset_meta: dataset-meta.json # committed alongside stars.json when it changes
+  run_meta: run-meta.json # run telemetry — git-ignored, uploaded as CI artifact

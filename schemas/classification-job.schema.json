@@ -1,0 +1,251 @@
+{
+  "$ref": "#/definitions/ClassificationJob",
+  "definitions": {
+    "ClassificationJob": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "job_id": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "taxonomy_version": {
+          "type": "string",
+          "const": "1"
+        },
+        "prompt_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_profile_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "executor_kind": {
+          "type": "string",
+          "enum": [
+            "claude-routine",
+            "codex-automation"
+          ]
+        },
+        "input": {
+          "type": "object",
+          "properties": {
+            "name_with_owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "primary_language": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "topics": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "maxItems": 100
+            },
+            "repo_metadata_sha256": {
+              "$ref": "#/definitions/ClassificationJob/properties/source_fingerprint"
+            },
+            "readme": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "oid": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "content": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "oid",
+                    "content"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "name_with_owner",
+            "description",
+            "primary_language",
+            "topics",
+            "repo_metadata_sha256",
+            "readme"
+          ],
+          "additionalProperties": false
+        },
+        "constraints": {
+          "type": "object",
+          "properties": {
+            "allowed_categories": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "ai-ml",
+                  "communication-collaboration",
+                  "data-analytics",
+                  "developer-tools",
+                  "devops-infrastructure",
+                  "education-reference",
+                  "libraries-frameworks",
+                  "media-creative",
+                  "mobile",
+                  "other",
+                  "productivity-automation",
+                  "security-privacy",
+                  "self-hosted-homelab",
+                  "web-applications"
+                ]
+              },
+              "minItems": 1
+            },
+            "allowed_tags": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "ai-agents",
+                  "api",
+                  "authentication",
+                  "automation",
+                  "awesome-list",
+                  "backend",
+                  "backup",
+                  "benchmark",
+                  "boilerplate",
+                  "bot",
+                  "build-tool",
+                  "caching",
+                  "cli",
+                  "cms",
+                  "code-generation",
+                  "configuration",
+                  "containers",
+                  "dashboard",
+                  "database",
+                  "deployment",
+                  "desktop-app",
+                  "documentation",
+                  "editor",
+                  "encryption",
+                  "etl",
+                  "frontend",
+                  "game",
+                  "graphql",
+                  "gui",
+                  "kubernetes",
+                  "library",
+                  "linter",
+                  "llm",
+                  "logging",
+                  "machine-learning",
+                  "markdown",
+                  "message-queue",
+                  "monitoring",
+                  "networking",
+                  "no-code",
+                  "notifications",
+                  "observability",
+                  "orchestration",
+                  "orm",
+                  "package-manager",
+                  "plugin",
+                  "productivity",
+                  "proxy",
+                  "real-time",
+                  "rest-api",
+                  "scraping",
+                  "sdk",
+                  "search",
+                  "security-scanner",
+                  "self-hosted",
+                  "serverless",
+                  "static-site-generator",
+                  "terminal",
+                  "testing",
+                  "theme",
+                  "tui",
+                  "vector-database",
+                  "visualization",
+                  "web-framework",
+                  "workflow"
+                ]
+              }
+            },
+            "max_tags": {
+              "type": "number",
+              "const": 6
+            },
+            "summary_min_chars": {
+              "type": "number",
+              "const": 80
+            },
+            "summary_max_chars": {
+              "type": "number",
+              "const": 400
+            }
+          },
+          "required": [
+            "allowed_categories",
+            "allowed_tags",
+            "max_tags",
+            "summary_min_chars",
+            "summary_max_chars"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "node_id",
+        "source_fingerprint",
+        "taxonomy_version",
+        "prompt_version",
+        "execution_profile_version",
+        "executor_kind",
+        "input",
+        "constraints"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+}

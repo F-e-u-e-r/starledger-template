@@ -1,0 +1,47 @@
+# Notifier configuration (P2). Copy to notifier.yaml and adjust.
+#
+# Secrets are NOT configured here — they are read from the environment:
+#   STAR_SYNC_TOKEN     fine-grained PAT, `Contents: read` (read-only)
+#   TELEGRAM_BOT_TOKEN  bot token for delivery
+#   TELEGRAM_CHAT_ID    destination chat id
+
+youtube:
+  # Channel ids to poll (the `channel_id` in https://www.youtube.com/feeds/videos.xml?channel_id=...).
+  channels: []
+  # Per-channel retained "recently seen video" window. Detection of new videos is
+  # independent of this; the window only bounds state growth (50–500).
+  recent_seen_limit: 100
+
+awesome_stars:
+  # maguowei/awesome-stars defaults to `master` (NOT `main`) and ships README.md + topics.md.
+  repository: maguowei/awesome-stars
+  ref: master
+  paths:
+    - README.md
+
+telegram:
+  # Telegram caps message text at 4096 characters AFTER HTML entity parsing.
+  disable_web_page_preview: true
+
+state:
+  # Notifier state lives on a dedicated branch so it never touches main / stars.json.
+  branch: starledger-state
+  file: notifier-state.json
+  remote: origin
+
+retention:
+  # The delivery log is pruned by age THEN by count. The pending queue is NEVER pruned.
+  delivery_days: 90
+  delivery_max: 2000
+
+summary:
+  # RESERVED. LLM summarization is a P3 concern; P2 always uses the deterministic
+  # summary. Setting this true is REJECTED, so the config never promises behavior
+  # that does not exist yet.
+  use_llm: false
+
+retry:
+  # A pending item still failing after this many attempts is surfaced as
+  # `attention` telemetry. It STAYS pending and is never auto-discarded — the
+  # threshold only makes a stuck item visible to an operator.
+  attention_after_attempts: 6

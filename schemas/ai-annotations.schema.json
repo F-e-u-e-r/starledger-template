@@ -1,0 +1,239 @@
+{
+  "$ref": "#/definitions/AiAnnotations",
+  "definitions": {
+    "AiAnnotations": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "taxonomy_version": {
+          "type": "string",
+          "const": "1"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "node_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "ai-ml",
+                  "communication-collaboration",
+                  "data-analytics",
+                  "developer-tools",
+                  "devops-infrastructure",
+                  "education-reference",
+                  "libraries-frameworks",
+                  "media-creative",
+                  "mobile",
+                  "other",
+                  "productivity-automation",
+                  "security-privacy",
+                  "self-hosted-homelab",
+                  "web-applications"
+                ]
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "ai-agents",
+                    "api",
+                    "authentication",
+                    "automation",
+                    "awesome-list",
+                    "backend",
+                    "backup",
+                    "benchmark",
+                    "boilerplate",
+                    "bot",
+                    "build-tool",
+                    "caching",
+                    "cli",
+                    "cms",
+                    "code-generation",
+                    "configuration",
+                    "containers",
+                    "dashboard",
+                    "database",
+                    "deployment",
+                    "desktop-app",
+                    "documentation",
+                    "editor",
+                    "encryption",
+                    "etl",
+                    "frontend",
+                    "game",
+                    "graphql",
+                    "gui",
+                    "kubernetes",
+                    "library",
+                    "linter",
+                    "llm",
+                    "logging",
+                    "machine-learning",
+                    "markdown",
+                    "message-queue",
+                    "monitoring",
+                    "networking",
+                    "no-code",
+                    "notifications",
+                    "observability",
+                    "orchestration",
+                    "orm",
+                    "package-manager",
+                    "plugin",
+                    "productivity",
+                    "proxy",
+                    "real-time",
+                    "rest-api",
+                    "scraping",
+                    "sdk",
+                    "search",
+                    "security-scanner",
+                    "self-hosted",
+                    "serverless",
+                    "static-site-generator",
+                    "terminal",
+                    "testing",
+                    "theme",
+                    "tui",
+                    "vector-database",
+                    "visualization",
+                    "web-framework",
+                    "workflow"
+                  ]
+                },
+                "maxItems": 6
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 80,
+                "maxLength": 400
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "readme",
+                      "metadata"
+                    ]
+                  },
+                  "readme_path": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "readme_oid": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repo_metadata_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "fingerprint": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "readme_path",
+                  "readme_oid",
+                  "repo_metadata_sha256",
+                  "fingerprint"
+                ],
+                "additionalProperties": false
+              },
+              "generation": {
+                "type": "object",
+                "properties": {
+                  "executor_kind": {
+                    "type": "string",
+                    "enum": [
+                      "claude-routine",
+                      "codex-automation"
+                    ]
+                  },
+                  "execution_profile_version": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "model_label": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "prompt_version": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "generated_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "executor_kind",
+                  "execution_profile_version",
+                  "model_label",
+                  "prompt_version",
+                  "generated_at"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "node_id",
+              "category",
+              "tags",
+              "summary",
+              "source",
+              "generation"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "taxonomy_version",
+        "annotations"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+}

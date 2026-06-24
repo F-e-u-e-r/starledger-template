@@ -1,0 +1,27 @@
+{
+  "starredAt": "2026-03-01T00:00:00Z",
+  "node": {
+    "id": "R_rel3",
+    "nameWithOwner": "acme/lib",
+    "name": "lib",
+    "owner": { "login": "acme" },
+    "url": "https://github.com/acme/lib",
+    "description": "A library",
+    "homepageUrl": null,
+    "stargazerCount": 5,
+    "forkCount": 1,
+    "isArchived": false,
+    "isDisabled": false,
+    "isFork": false,
+    "isPrivate": false,
+    "createdAt": "2023-01-01T00:00:00Z",
+    "pushedAt": "2025-12-01T00:00:00Z",
+    "updatedAt": "2025-12-02T00:00:00Z",
+    "primaryLanguage": { "name": "Go" },
+    "licenseInfo": { "spdxId": "MIT" },
+    "repositoryTopics": { "nodes": [] },
+    "issues": { "totalCount": 3 },
+    "latestRelease": null,
+    "releases": { "nodes": [] }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@starred/github-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsup"
+  },
+  "dependencies": {
+    "@octokit/graphql": "^8.2.0",
+    "@octokit/plugin-retry": "^7.1.4",
+    "@octokit/plugin-throttling": "^9.4.0",
+    "@octokit/rest": "^21.0.2"
+  }
+}

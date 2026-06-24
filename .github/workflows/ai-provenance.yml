@@ -1,0 +1,56 @@
+name: AI provenance gate
+
+# Path-TRIGGERED provenance gate, the second required check on AI-artifact PRs.
+# Like the structural gate it runs from the trusted default branch on
+# pull_request_target, checks out the protected base revision, and fetches the PR
+# head as DATA only — it never checks out or executes PR code. It recomputes the
+# current jobs/fingerprints from the trusted base dataset plus live README
+# discovery and rejects stale or invented annotations. README discovery targets
+# come from the trusted canonical dataset, never from the untrusted PR, so there
+# is no SSRF surface. A PR that touches no AI artifact is a green no-op.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-provenance-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify-ai-provenance:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the protected base revision. Do not execute code from the PR.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The PR number is a GitHub-controlled integer (no injection surface).
+      - name: fetch the pull-request head as data
+        run: |
+          git fetch --no-tags origin \
+            "+refs/pull/${{ github.event.pull_request.number }}/head:refs/remotes/origin/ai-agent-pr"
+
+      # The trusted base-branch CLI recomputes provenance from canonical data. The
+      # read-only workflow GITHUB_TOKEN is used ONLY to read repository READMEs for
+      # fingerprint recomputation; discovery targets come from the trusted dataset.
+      - name: AI provenance gate (path-triggered)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node --import tsx packages/classifier/src/cli.ts verify-ai-provenance \
+            --base "$BASE_SHA" \
+            --head origin/ai-agent-pr

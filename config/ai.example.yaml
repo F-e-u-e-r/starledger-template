@@ -1,0 +1,43 @@
+# Agent-executor configuration (P3). Copy to ai.yaml and adjust.
+#
+# No API key, provider, or model is configured here. Claude Routines and Codex
+# App Automations use their own subscription authentication and are replaceable
+# untrusted candidate producers. Their model label is informational only.
+
+ai:
+  # Operational interlock. While false, the planner writes an empty manifest and
+  # the provenance gate rejects attempted artifact publication. Deterministic
+  # validation commands remain safe to run.
+  enabled: false
+
+  # The manifest is bound to exactly one executor. Do not schedule Claude and
+  # Codex at the same time; switching executor deliberately creates new job ids.
+  executor_kind: claude-routine
+
+  # Bump either value whenever the classification methodology changes. They are
+  # embedded in the immutable job id and therefore intentionally reclassify.
+  prompt_version: classify-v1
+  execution_profile:
+    execution_profile_version: agent-v1
+
+  # Hard caps on untrusted README/metadata preprocessing. README text is
+  # untrusted data and no URL found inside it is ever fetched.
+  readme_max_chars: 30000
+  metadata_max_chars: 5000
+
+  # Planner ceilings: hard per-run repository limits, not cost estimates. The
+  # planner selects new > due-retry > changed-fingerprint jobs up to these caps.
+  # The template default is intentionally minimal — one new repository per run,
+  # no refresh or retry — so a fresh repo can validate a single artifact PR end
+  # to end before raising the caps. Raise these only after one provenance-gated
+  # AI PR has merged cleanly.
+  budget:
+    max_new_per_run: 1
+    max_refresh_per_run: 0
+    max_retry_per_run: 0
+    max_total_per_run: 1
+
+  # Operational state (README path/OID cache, retry bookkeeping, terminal-
+  # unavailable flags) is committed to the dedicated `starledger-ai-state` branch
+  # as classifier-state.json — never on main, independent of the notifier's state
+  # branch. It never stores README content, prompts, candidates, or secrets.

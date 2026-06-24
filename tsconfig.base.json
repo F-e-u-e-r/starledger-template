@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@starred/schema": ["packages/schema/src"],
+      "@starred/github-client": ["packages/github-client/src"],
+      "@starred/ai-schema": ["packages/ai-schema/src"],
+      "@starred/ai-schema/contracts": ["packages/ai-schema/src/contracts"],
+      "@starred/classifier": ["packages/classifier/src"]
+    }
+  }
+}

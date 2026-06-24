@@ -1,0 +1,37 @@
+{
+  "starredAt": "2026-01-10T00:00:00Z",
+  "node": {
+    "id": "R_rel1",
+    "nameWithOwner": "acme/rocket",
+    "name": "rocket",
+    "owner": { "login": "acme" },
+    "url": "https://github.com/acme/rocket",
+    "description": "A fast thing",
+    "homepageUrl": "",
+    "stargazerCount": 4200,
+    "forkCount": 300,
+    "isArchived": false,
+    "isDisabled": false,
+    "isFork": false,
+    "isPrivate": false,
+    "createdAt": "2019-01-01T00:00:00Z",
+    "pushedAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-11T00:00:00Z",
+    "primaryLanguage": { "name": "Rust" },
+    "licenseInfo": { "spdxId": "Apache-2.0" },
+    "repositoryTopics": {
+      "nodes": [{ "topic": { "name": "cli" } }, { "topic": { "name": "rust" } }]
+    },
+    "issues": { "totalCount": 12 },
+    "latestRelease": {
+      "tagName": "v2.1.0",
+      "publishedAt": "2026-05-01T00:00:00Z",
+      "url": "https://github.com/acme/rocket/releases/tag/v2.1.0"
+    },
+    "releases": {
+      "nodes": [
+        { "tagName": "v2.2.0-rc1", "publishedAt": "2026-06-09T00:00:00Z", "isPrerelease": true }
+      ]
+    }
+  }
+}

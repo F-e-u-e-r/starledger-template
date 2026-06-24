@@ -1,0 +1,63 @@
+name: AI agent artifact gate
+
+# Path-TRIGGERED structural gate. It runs on EVERY pull request from the trusted
+# default branch, fetches the PR head as data, and — only when an AI artifact is
+# touched — requires an approved, same-repository executor branch and a complete,
+# valid artifact pair. Branch-name conventions identify the executor; they do NOT
+# decide whether validation runs, so renaming a branch cannot skip the gate. The
+# workflow never checks out or executes agent-controlled code, and needs no
+# repository secret to run.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-agent-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify-agent-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the protected base revision. Do not execute code from the PR.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The PR number is a GitHub-controlled integer (no injection surface), so it
+      # is interpolated directly; the attacker-controlled branch/repo NAMES below
+      # are passed via env instead.
+      - name: fetch the pull-request head as data
+        run: |
+          git fetch --no-tags origin \
+            "+refs/pull/${{ github.event.pull_request.number }}/head:refs/remotes/origin/ai-agent-pr"
+
+      # Every event-controlled value is passed via env (NOT interpolated into the
+      # script), so an attacker-named head branch cannot inject shell. The trusted
+      # base-branch CLI decides everything from the changed paths: a source-only PR
+      # passes; any AI-artifact change must be an approved same-repo executor pair.
+      - name: structural AI-artifact gate (path-triggered)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          node --import tsx packages/classifier/src/cli.ts verify-agent-pr \
+            --base "$BASE_SHA" \
+            --head origin/ai-agent-pr \
+            --head-ref "$HEAD_REF" \
+            --head-repo "$HEAD_REPO" \
+            --repo "$REPO"

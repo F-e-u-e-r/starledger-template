@@ -1,0 +1,52 @@
+name: Notify discoveries
+
+on:
+  # Scheduled triggers are disabled in the template until you set secrets.
+  # Uncomment to re-enable (see docs/setup/), and run once manually first:
+  # schedule:
+  #   # Non-zero minute avoids the top-of-hour scheduler surge.
+  #   - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: notifier
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @starred/notifier build
+
+      - name: configure git identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      # GitStateStore loads, validates, and creates/updates the dedicated state
+      # branch through Git plumbing. It never checks out or changes main.
+      - name: poll, resolve, deliver, and persist notifier state
+        env:
+          STAR_SYNC_TOKEN: ${{ secrets.STAR_SYNC_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          args=()
+          if [ -f config/notifier.yaml ]; then
+            args+=(--config config/notifier.yaml)
+          fi
+          node packages/notifier/dist/cli.js "${args[@]}"

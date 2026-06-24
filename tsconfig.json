@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "references": [
+    { "path": "./packages/schema" },
+    { "path": "./packages/github-client" },
+    { "path": "./packages/ai-schema" },
+    { "path": "./packages/exporter" },
+    { "path": "./packages/deploy" },
+    { "path": "./packages/notifier" },
+    { "path": "./packages/classifier" }
+  ]
+}

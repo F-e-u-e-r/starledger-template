@@ -1,0 +1,273 @@
+{
+  "$ref": "#/definitions/StarsFile",
+  "definitions": {
+    "StarsFile": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "repos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "node_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name_with_owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "homepage_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "primary_language": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "topics": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "license_spdx": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "stargazer_count": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fork_count": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "open_issues_count": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "is_archived": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "is_disabled": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "is_fork": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "pushed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "updated_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "latest_stable_release": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tag_name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "published_at": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "url": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    },
+                    "required": [
+                      "tag_name",
+                      "published_at",
+                      "url"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "latest_any_release": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tag_name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "published_at": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "is_prerelease": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "tag_name",
+                      "published_at",
+                      "is_prerelease"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "starred_at": {
+                "type": "string",
+                "minLength": 1
+              },
+              "hydration_status": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "partial",
+                  "failed"
+                ]
+              },
+              "unavailable_fields": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "description",
+                    "homepage_url",
+                    "primary_language",
+                    "topics",
+                    "license_spdx",
+                    "stargazer_count",
+                    "fork_count",
+                    "open_issues_count",
+                    "is_archived",
+                    "is_disabled",
+                    "is_fork",
+                    "created_at",
+                    "pushed_at",
+                    "updated_at",
+                    "latest_stable_release",
+                    "latest_any_release"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "node_id",
+              "name_with_owner",
+              "owner",
+              "name",
+              "url",
+              "description",
+              "homepage_url",
+              "primary_language",
+              "topics",
+              "license_spdx",
+              "stargazer_count",
+              "fork_count",
+              "open_issues_count",
+              "is_archived",
+              "is_disabled",
+              "is_fork",
+              "created_at",
+              "pushed_at",
+              "updated_at",
+              "latest_stable_release",
+              "latest_any_release",
+              "starred_at",
+              "hydration_status",
+              "unavailable_fields"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "repos"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+}

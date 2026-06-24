@@ -1,0 +1,88 @@
+name: Sync stars
+
+on:
+  # Scheduled triggers are disabled in the template until you set secrets.
+  # Uncomment to re-enable (see docs/setup/), and run once manually first:
+  # schedule:
+  #   # Non-zero minute (avoid the top-of-hour stampede on GitHub's scheduler).
+  #   - cron: '23 5 * * *'
+  workflow_dispatch:
+
+# Write access to commit the refreshed dataset; pages/id-token so the called
+# deploy job (pages.yml) is permitted to publish.
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: sync-stars
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.export.outputs.sha }}
+      changed: ${{ steps.export.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: configure git identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      # The exporter validates, then commits + pushes ONLY on a content change.
+      # It reads stars with STAR_SYNC_TOKEN; the commit is pushed with the
+      # checkout-configured GITHUB_TOKEN (no second write-capable PAT).
+      - name: run exporter
+        id: export
+        env:
+          STAR_SYNC_TOKEN: ${{ secrets.STAR_SYNC_TOKEN }}
+        run: |
+          echo "workflow sha: $GITHUB_SHA"
+          echo "checked out sha: $(git rev-parse HEAD)"
+          node --input-type=module -e "const m = await import('./packages/exporter/dist/index.js'); console.log('exporter dist loaded:', m.EXPORTER_VERSION)"
+          before=$(git rev-parse HEAD)
+          set +e
+          node packages/exporter/dist/cli.js
+          status=$?
+          set -e
+          after=$(git rev-parse HEAD)
+          echo "sha=$after" >> "$GITHUB_OUTPUT"
+          if [ "$before" != "$after" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "::error::exporter exited with status $status on commit $before"
+            exit "$status"
+          fi
+
+      - name: validate the committed dataset
+        run: pnpm exec tsx packages/deploy/src/cli.ts check-data --data .
+
+  # Call the SAME deploy flow directly (a GITHUB_TOKEN commit does not trigger
+  # the push-based Pages workflow). Deploy on a real change, or on a manual run.
+  deploy:
+    needs: sync
+    if: ${{ needs.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      ref: ${{ needs.sync.outputs.sha }}
+    secrets: inherit

@@ -1,0 +1,95 @@
+name: Pages
+
+on:
+  # Reusable: the scheduled sync calls this after committing fresh data.
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build and deploy
+        type: string
+        required: false
+        default: ''
+  workflow_dispatch:
+  # Human pushes to main that change the app or the dataset.
+  push:
+    branches: [main]
+    paths:
+      - 'stars.json'
+      - 'dataset-meta.json'
+      - 'ai-annotations.json'
+      - 'ai-annotations-meta.json'
+      - 'apps/dashboard/**'
+      - 'packages/**'
+      - '.github/workflows/pages.yml'
+
+# GitHub's documented custom Pages deployment requires these.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only the newest Pages deployment proceeds when runs overlap.
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  # Skip (don't fail) when no dataset is committed yet: the first deploy happens
+  # after sync-stars commits data, so a dataless app/dispatch run is a green no-op.
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      has-data: ${{ steps.check.outputs.has-data }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - id: check
+        run: |
+          if [ -f stars.json ] && [ -f dataset-meta.json ]; then
+            echo "has-data=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-data=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No canonical dataset committed yet — skipping the Pages build/deploy. Run sync-stars (or commit stars.json + dataset-meta.json) first."
+          fi
+
+  build:
+    needs: guard
+    if: ${{ needs.guard.outputs.has-data == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Vite derives the Pages base path from GITHUB_REPOSITORY at build time.
+      - name: build dashboard
+        run: pnpm --filter @starred/dashboard build
+
+      - name: stage + verify the canonical dataset into the artifact
+        run: |
+          pnpm exec tsx packages/deploy/src/cli.ts stage --data . --dist apps/dashboard/dist
+          pnpm exec tsx packages/deploy/src/cli.ts verify --dist apps/dashboard/dist
+          pnpm exec tsx packages/deploy/src/cli.ts smoke --dist apps/dashboard/dist
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/dashboard/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

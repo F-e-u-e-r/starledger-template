@@ -1,0 +1,33 @@
+{
+  "$ref": "#/definitions/DatasetMeta",
+  "definitions": {
+    "DatasetMeta": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "dataset_generated_at": {
+          "type": "string"
+        },
+        "stars_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "repo_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "schema_version",
+        "dataset_generated_at",
+        "stars_sha256",
+        "repo_count"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+}

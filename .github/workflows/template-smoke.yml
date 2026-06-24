@@ -1,0 +1,67 @@
+name: Template smoke
+
+# Drift guard: regenerate the template from this repo, run its full verification
+# sequence, and assert the output is clean. Every exported input is covered so a
+# source-only change cannot silently make the generated repo fail to install,
+# typecheck, test, build, or leak a personal artifact.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'schemas/**'
+      - 'prompts/**'
+      - 'docs/**'
+      - 'config/**'
+      - 'config.example.yaml'
+      - 'README.template.md'
+      - '.github/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig*.json'
+      - 'vitest.config.ts'
+      - 'eslint.config.js'
+      - '.prettierrc.json'
+      - '.prettierignore'
+      - '.gitignore'
+      - '.npmrc'
+      - '.nvmrc'
+      - 'LICENSE'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: template-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: build and fully verify the template in a scratch directory
+        run: pnpm template:build --out "$RUNNER_TEMP/starledger-template" --verify
+
+      - name: no personal artifact may leak into the template
+        run: |
+          out="$RUNNER_TEMP/starledger-template"
+          fail=0
+          for f in stars.json dataset-meta.json ai-annotations.json ai-annotations-meta.json \
+                   run-meta.json config/ai.yaml config/notifier.yaml config.yaml README.template.md; do
+            if [ -e "$out/$f" ]; then echo "::error::$f leaked into the template output"; fail=1; fi
+          done
+          # The swapped README must exist; the template source README must not.
+          if [ ! -e "$out/README.md" ]; then echo "::error::README.md missing from template"; fail=1; fi
+          exit $fail

@@ -1,0 +1,28 @@
+{
+  "name": "@starred/classifier",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "stars-classify": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsup",
+    "start": "node --import tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@starred/ai-schema": "workspace:*",
+    "@starred/github-client": "workspace:*",
+    "@starred/schema": "workspace:*",
+    "commander": "^12.1.0",
+    "yaml": "^2.6.1",
+    "zod": "^3.24.1"
+  }
+}

@@ -1,0 +1,25 @@
+node_modules/
+.pnpm-store/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Local config & secrets
+config.yaml
+.env*
+
+# Run telemetry is per-execution and MUST NOT be committed (see P0/P3 specs).
+# It is uploaded as a GitHub Actions artifact / job summary instead.
+run-meta.json
+ai-run-meta.json
+.ai-runs/
+notifier-state.json
+classifier-state.json
+
+# Editor / OS
+.DS_Store
+*.swp
+.claude/
+.idea/
+.vscode/

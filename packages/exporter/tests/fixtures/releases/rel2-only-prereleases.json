@@ -1,0 +1,31 @@
+{
+  "starredAt": "2026-02-01T00:00:00Z",
+  "node": {
+    "id": "R_rel2",
+    "nameWithOwner": "acme/beta",
+    "name": "beta",
+    "owner": { "login": "acme" },
+    "url": "https://github.com/acme/beta",
+    "description": null,
+    "homepageUrl": null,
+    "stargazerCount": 10,
+    "forkCount": 0,
+    "isArchived": false,
+    "isDisabled": false,
+    "isFork": false,
+    "isPrivate": false,
+    "createdAt": "2024-01-01T00:00:00Z",
+    "pushedAt": "2026-01-01T00:00:00Z",
+    "updatedAt": "2026-01-02T00:00:00Z",
+    "primaryLanguage": null,
+    "licenseInfo": null,
+    "repositoryTopics": { "nodes": [] },
+    "issues": { "totalCount": 0 },
+    "latestRelease": null,
+    "releases": {
+      "nodes": [
+        { "tagName": "v0.1.0-beta.3", "publishedAt": "2026-01-01T00:00:00Z", "isPrerelease": true }
+      ]
+    }
+  }
+}

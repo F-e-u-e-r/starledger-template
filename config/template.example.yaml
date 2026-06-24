@@ -1,0 +1,38 @@
+# Template onboarding manifest. Copy to config/template.yaml and edit as you
+# enable features. It declares INTENT only — it stores no secret, no chat id,
+# and no personal source. `pnpm setup:doctor` reads it to decide which feature
+# checks to enforce, so a fresh repo is validated against what you actually
+# plan to turn on rather than against the maintainer's deployment.
+#
+# Everything optional is OFF here. The dashboard (P0 exporter + P1 static site)
+# is the only always-on deliverable; the notifier and AI enrichment stay dark
+# until you explicitly opt in and add the matching secrets.
+
+template:
+  # Flip to true once you have created your own repo from this template, added
+  # STAR_SYNC_TOKEN, and removed every maintainer-specific value. This is an
+  # onboarding marker for your team; `--template-clean` is intentionally for
+  # the generated template output only and rejects personal artifacts directly.
+  initialized: false
+
+features:
+  # P0 exporter + P1 dashboard. Always on — this is the core product. The first
+  # `Sync stars` run creates stars.json + dataset-meta.json and Pages deploys.
+  dashboard:
+    enabled: true
+
+  # P2 Telegram notifier. Requires TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID and a
+  # configured config/notifier.yaml. While disabled here the doctor will not
+  # demand Telegram setup, and the shipped notify workflow is manual-dispatch
+  # only (no schedule) so nothing fires until you opt in.
+  # See docs/setup/notifier.md.
+  notifier:
+    enabled: false
+
+  # P3 optional AI enrichment. Requires config/ai.yaml with `ai.enabled: true`
+  # and an EXTERNAL Claude Routine / Codex executor that opens the artifact PR.
+  # No model key is ever stored in this repo. While disabled here the doctor
+  # only runs the safe deterministic AI checks.
+  # See docs/setup/ai-executor.md.
+  ai:
+    enabled: false

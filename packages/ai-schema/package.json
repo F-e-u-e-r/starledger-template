@@ -1,0 +1,25 @@
+{
+  "name": "@starred/ai-schema",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./contracts": {
+      "types": "./src/contracts.ts",
+      "default": "./src/contracts.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsup",
+    "generate:schemas": "node --import tsx src/generate-schemas.ts"
+  },
+  "dependencies": {
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.24.1"
+  }
+}

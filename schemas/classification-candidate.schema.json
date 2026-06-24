@@ -1,0 +1,185 @@
+{
+  "$ref": "#/definitions/ClassificationCandidate",
+  "definitions": {
+    "ClassificationCandidate": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "job_id": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "taxonomy_version": {
+          "type": "string",
+          "const": "1"
+        },
+        "prompt_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_profile_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "ai-ml",
+            "communication-collaboration",
+            "data-analytics",
+            "developer-tools",
+            "devops-infrastructure",
+            "education-reference",
+            "libraries-frameworks",
+            "media-creative",
+            "mobile",
+            "other",
+            "productivity-automation",
+            "security-privacy",
+            "self-hosted-homelab",
+            "web-applications"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ai-agents",
+              "api",
+              "authentication",
+              "automation",
+              "awesome-list",
+              "backend",
+              "backup",
+              "benchmark",
+              "boilerplate",
+              "bot",
+              "build-tool",
+              "caching",
+              "cli",
+              "cms",
+              "code-generation",
+              "configuration",
+              "containers",
+              "dashboard",
+              "database",
+              "deployment",
+              "desktop-app",
+              "documentation",
+              "editor",
+              "encryption",
+              "etl",
+              "frontend",
+              "game",
+              "graphql",
+              "gui",
+              "kubernetes",
+              "library",
+              "linter",
+              "llm",
+              "logging",
+              "machine-learning",
+              "markdown",
+              "message-queue",
+              "monitoring",
+              "networking",
+              "no-code",
+              "notifications",
+              "observability",
+              "orchestration",
+              "orm",
+              "package-manager",
+              "plugin",
+              "productivity",
+              "proxy",
+              "real-time",
+              "rest-api",
+              "scraping",
+              "sdk",
+              "search",
+              "security-scanner",
+              "self-hosted",
+              "serverless",
+              "static-site-generator",
+              "terminal",
+              "testing",
+              "theme",
+              "tui",
+              "vector-database",
+              "visualization",
+              "web-framework",
+              "workflow"
+            ]
+          },
+          "maxItems": 6
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "execution": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "claude-routine",
+                "codex-automation"
+              ]
+            },
+            "profile_version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "model_label": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "profile_version",
+            "model_label"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema_version",
+        "job_id",
+        "node_id",
+        "source_fingerprint",
+        "taxonomy_version",
+        "prompt_version",
+        "execution_profile_version",
+        "category",
+        "tags",
+        "summary",
+        "execution"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+}

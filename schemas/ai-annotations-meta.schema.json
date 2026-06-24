@@ -1,0 +1,44 @@
+{
+  "$ref": "#/definitions/AiAnnotationsMeta",
+  "definitions": {
+    "AiAnnotationsMeta": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "annotations_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "annotation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "taxonomy_version": {
+          "type": "string",
+          "const": "1"
+        },
+        "dataset_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "schema_version",
+        "annotations_sha256",
+        "annotation_count",
+        "taxonomy_version",
+        "dataset_sha256",
+        "generated_at"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+}
