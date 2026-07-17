@@ -1,0 +1,31 @@
+name: Bug report
+description: Setup, workflow, or dashboard problem in a StarLedger instance.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do **not** paste tokens or secrets — `STAR_SYNC_TOKEN`, app
+        private keys, and Telegram bot tokens must never appear in an issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: step
+    attributes:
+      label: Where in the setup
+      description: Which step of the README or docs were you on? Which workflow run failed (name + link if public)?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Trim to the failing lines; redact usernames and tokens as needed.
+      render: text
+    validations:
+      required: false
