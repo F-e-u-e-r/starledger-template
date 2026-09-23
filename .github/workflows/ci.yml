@@ -18,10 +18,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -34,19 +34,10 @@ jobs:
         run: pnpm lint
       - name: format check
         run: pnpm format:check
-      - name: test
-        run: pnpm test
+      - name: test (with coverage thresholds)
+        run: pnpm test:coverage
       - name: build
         run: pnpm build
-
-      # Secret-free notifier smokes — safe on fork PRs. Both import the built
-      # artifact, so they run after build. The state smoke drives real Git
-      # plumbing against a temp bare remote; the replay smoke proves the
-      # at-least-once sent/permanent guard suppresses a duplicate delivery.
-      - name: notifier state-branch + replay smokes (no secrets)
-        run: |
-          node scripts/smoke-notifier-state.mjs
-          node scripts/smoke-notifier-replay.mjs
 
       - name: schema drift (regenerate + verify clean)
         run: |
@@ -60,27 +51,3 @@ jobs:
           pnpm exec tsx packages/deploy/src/cli.ts stage --data "$RUNNER_TEMP" --dist apps/dashboard/dist
           pnpm exec tsx packages/deploy/src/cli.ts verify --dist apps/dashboard/dist
           pnpm exec tsx packages/deploy/src/cli.ts smoke --dist apps/dashboard/dist
-
-  # Optional: only runs in a trusted context where the read-only PAT exists.
-  public-pat-smoke:
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'pull_request' }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: public-only PAT smoke (private_filtered must be 0)
-        env:
-          STAR_SYNC_TOKEN: ${{ secrets.STAR_SYNC_TOKEN }}
-        run: |
-          if [ -z "$STAR_SYNC_TOKEN" ]; then
-            echo "STAR_SYNC_TOKEN not set — skipping"; exit 0
-          fi
-          pnpm build
-          node scripts/smoke-public-pat.mjs

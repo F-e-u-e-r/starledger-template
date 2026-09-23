@@ -8,12 +8,11 @@ on:
   #   - cron: '23 5 * * *'
   workflow_dispatch:
 
-# Write access to commit the refreshed dataset; pages/id-token so the called
-# deploy job (pages.yml) is permitted to publish.
+# Write access for the dataset commit only. The exporter pushes with the GitHub
+# App token (a ruleset bypass actor); Pages deploys via pages.yml's own push
+# trigger on the data commit, so this job needs neither pages nor id-token.
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: sync-stars
@@ -22,14 +21,37 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    outputs:
-      sha: ${{ steps.export.outputs.sha }}
-      changed: ${{ steps.export.outputs.changed }}
     steps:
-      - uses: actions/checkout@v4
+      # Publish to the protected default branch with a dedicated GitHub App
+      # installation token. The App is scoped to THIS repository and is a
+      # ruleset bypass actor on main, so the dataset commit can land without a
+      # broad github-actions[bot] bypass or an admin PAT. actions/checkout
+      # persists this token as the git credential, so the exporter's push
+      # authenticates as the App. STAR_SYNC_TOKEN stays a read-only stars/API
+      # token and is NOT used for git auth.
+      #
+      # LOAD-BEARING INVARIANT (OPS-A): the dataset commit MUST be pushed with a
+      # token that can trigger a downstream workflow. GitHub deliberately does
+      # NOT run workflows for pushes made with the default GITHUB_TOKEN
+      # (anti-recursion). This App installation token DOES trigger them, which is
+      # the ONLY thing that fires pages.yml's `push` trigger and deploys the new
+      # data. If anyone "simplifies" this back to GITHUB_TOKEN, sync stays green
+      # but the live site silently freezes on stale data with no failed run to
+      # notice. Do not change the push credential without re-checking pages.yml.
+      - name: create sync app token
+        id: sync-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.STARLEDGER_SYNC_APP_ID }}
+          private-key: ${{ secrets.STARLEDGER_SYNC_APP_PRIVATE_KEY }}
 
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: main
+          token: ${{ steps.sync-token.outputs.token }}
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -44,11 +66,19 @@ jobs:
 
       # The exporter validates, then commits + pushes ONLY on a content change.
       # It reads stars with STAR_SYNC_TOKEN; the commit is pushed with the
-      # checkout-configured GITHUB_TOKEN (no second write-capable PAT).
+      # checkout-configured GitHub App token (a ruleset bypass actor on main),
+      # never with STAR_SYNC_TOKEN.
       - name: run exporter
         id: export
         env:
           STAR_SYNC_TOKEN: ${{ secrets.STAR_SYNC_TOKEN }}
+          # actions/checkout pins the event SHA in detached HEAD; tell the
+          # exporter which branch to push the dataset commit to.
+          STARLEDGER_PUBLISH_BRANCH: ${{ github.ref_name }}
+          # A GitHub secondary-rate-limit cooldown (Retry-After) can be 300s,
+          # which exceeds the conservative 120s library default and would abort
+          # the run. The daily job can afford to wait, so widen the budget.
+          STARLEDGER_RETRY_MAX_TOTAL_WAIT_MS: '600000'
         run: |
           echo "workflow sha: $GITHUB_SHA"
           echo "checked out sha: $(git rev-parse HEAD)"
@@ -73,16 +103,29 @@ jobs:
       - name: validate the committed dataset
         run: pnpm exec tsx packages/deploy/src/cli.ts check-data --data .
 
-  # Call the SAME deploy flow directly (a GITHUB_TOKEN commit does not trigger
-  # the push-based Pages workflow). Deploy on a real change, or on a manual run.
-  deploy:
-    needs: sync
-    if: ${{ needs.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch' }}
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/pages.yml
-    with:
-      ref: ${{ needs.sync.outputs.sha }}
-    secrets: inherit
+      # run-meta.json carries the degraded ratio + retry/hydrate telemetry the
+      # exporter emits. Surface it into the run summary and keep it as an
+      # artifact so an exit-20 deferral is diagnosable after the runner is gone
+      # (B3). `if: always()` so it is captured even when the exporter failed.
+      - name: publish run-meta telemetry
+        if: always()
+        run: |
+          if [ -f run-meta.json ]; then
+            {
+              echo '### Sync run-meta'
+              echo '```json'
+              cat run-meta.json
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '::warning::run-meta.json not found — exporter may have exited before writing telemetry'
+          fi
+
+      - name: upload run-meta artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: run-meta
+          path: run-meta.json
+          if-no-files-found: warn
+          retention-days: 30
