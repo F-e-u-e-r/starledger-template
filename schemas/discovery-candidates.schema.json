@@ -1,0 +1,170 @@
+{
+  "$ref": "#/definitions/DiscoveryCandidatesFile",
+  "definitions": {
+    "DiscoveryCandidatesFile": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "number",
+          "const": 1
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "node_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "full_name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "html_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "homepage_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "primary_language": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "stargazer_count": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "archived": {
+                "type": "boolean"
+              },
+              "disabled": {
+                "type": "boolean"
+              },
+              "fork": {
+                "type": "boolean"
+              },
+              "pushed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "discovered_at": {
+                "type": "string",
+                "minLength": 1
+              },
+              "first_seen_source": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "manual",
+                      "notifier",
+                      "fixture",
+                      "future-telegram",
+                      "future-youtube",
+                      "future-web"
+                    ]
+                  },
+                  "source_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source_url": {
+                    "$ref": "#/definitions/DiscoveryCandidatesFile/properties/candidates/items/properties/html_url"
+                  },
+                  "observed_at": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "raw_ref": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "source_id",
+                  "observed_at"
+                ],
+                "additionalProperties": false
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/DiscoveryCandidatesFile/properties/candidates/items/properties/first_seen_source"
+                },
+                "minItems": 1
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "candidate",
+                  "dismissed",
+                  "promoted"
+                ]
+              },
+              "decision_reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "node_id",
+              "owner",
+              "name",
+              "full_name",
+              "html_url",
+              "description",
+              "homepage_url",
+              "primary_language",
+              "stargazer_count",
+              "archived",
+              "disabled",
+              "fork",
+              "pushed_at",
+              "discovered_at",
+              "first_seen_source",
+              "sources",
+              "status"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "candidates"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+}

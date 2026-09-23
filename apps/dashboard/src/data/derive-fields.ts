@@ -1,5 +1,6 @@
 import type { CanonicalRepo } from '@starred/schema';
 import type { RepoAnnotation } from './load-annotations';
+import type { RepoSkillsClassification } from './load-skills-classification';
 
 /** Three-state availability that preserves P0's `null` (absent) vs unknown distinction. */
 export type ReleaseAvailability = 'has' | 'none' | 'unavailable';
@@ -17,6 +18,12 @@ export interface DerivedRepo extends CanonicalRepo {
    * layer and never overrides a canonical field.
    */
   ai: RepoAnnotation | null;
+  /**
+   * Optional skills classification, joined by `node_id` (P7 §4.11; `null` when
+   * unclassified — "absence is not a classification", the repo stays fully
+   * visible). Same secondary-layer discipline as `ai`.
+   */
+  skills: RepoSkillsClassification | null;
 }
 
 export const STALE_MONTHS = 12;
@@ -34,6 +41,7 @@ export function deriveRepo(
   repo: CanonicalRepo,
   now: Date,
   annotation: RepoAnnotation | null = null,
+  skillsClassification: RepoSkillsClassification | null = null,
 ): DerivedRepo {
   const pushKnown = !repo.unavailable_fields.includes('pushed_at') && repo.pushed_at !== null;
   const monthsSincePush = pushKnown
@@ -47,6 +55,7 @@ export function deriveRepo(
     stableRelease: availability(repo, 'latest_stable_release'),
     anyRelease: availability(repo, 'latest_any_release'),
     ai: annotation,
+    skills: skillsClassification,
   };
 }
 
@@ -54,6 +63,14 @@ export function deriveAll(
   repos: readonly CanonicalRepo[],
   now: Date,
   annotations?: ReadonlyMap<string, RepoAnnotation>,
+  skills?: ReadonlyMap<string, RepoSkillsClassification>,
 ): DerivedRepo[] {
-  return repos.map((repo) => deriveRepo(repo, now, annotations?.get(repo.node_id) ?? null));
+  return repos.map((repo) =>
+    deriveRepo(
+      repo,
+      now,
+      annotations?.get(repo.node_id) ?? null,
+      skills?.get(repo.node_id) ?? null,
+    ),
+  );
 }

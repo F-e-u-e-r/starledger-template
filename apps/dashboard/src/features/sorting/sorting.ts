@@ -17,6 +17,16 @@ export const SORT_FIELDS: readonly SortField[] = [
   'name_with_owner',
 ];
 
+/**
+ * The natural default direction for a sort field: a name reads best A→Z, while
+ * dates and counts read best newest/highest first. Switching the sort FIELD
+ * resets direction to this default (the user can still flip it), so selecting
+ * "Name" shows A→Z instead of inheriting a stale `desc` and reading Z→A.
+ */
+export function defaultDirection(field: SortField): SortDirection {
+  return field === 'name_with_owner' ? 'asc' : 'desc';
+}
+
 /** Comparable value for a field, or null when unknown/absent (always sorts last). */
 function sortValue(repo: CanonicalRepo, field: SortField): string | number | null {
   switch (field) {

@@ -27,8 +27,11 @@ export interface AgentPullRequestContext {
   repo: string;
   /** The base...head diff entries, produced by trusted base-branch code. */
   entries: readonly GitDiffEntry[];
-  /** Reads an artifact's bytes at the head ref. Called only once the pair is required. */
-  readArtifact: (path: string) => string;
+  /** Reads an artifact's EXACT bytes at the head ref. Called only once the
+   * pair is required. Bytes, not text: the gate's digest check is a byte
+   * contract, and a lossy decoding here would accept a PR whose artifact
+   * bytes the deployed runtime then rejects (round 9). */
+  readArtifact: (path: string) => Uint8Array;
 }
 
 export interface AgentGateResult {
@@ -68,7 +71,12 @@ export function verifyAgentPullRequest(context: AgentPullRequestContext): AgentG
   verifyAgentDiffEntries(context.entries);
 
   // Schema, count, taxonomy, and exact-byte hash on the trusted-read pair.
-  verifyAiArtifacts(context.readArtifact(ANNOTATIONS_PATH), context.readArtifact(META_PATH));
+  // Annotations stay BYTES for the digest; the meta half is decoded — its
+  // acceptance check is canonical-form equality (see verifyAiArtifacts).
+  verifyAiArtifacts(
+    context.readArtifact(ANNOTATIONS_PATH),
+    Buffer.from(context.readArtifact(META_PATH)).toString('utf8'),
+  );
   return { touched: true };
 }
 

@@ -96,6 +96,15 @@ function annotationRecordKey(annotation: Annotation): string {
   });
 }
 
+/** Observational cause for a README identity mismatch, chosen per field: which
+ * side records a value and which side the live discovery finds — never a claim
+ * about history (planned/changed), which the verifier cannot know. */
+function readmeCause(recorded: string | null, discovered: string | null, noun: string): string {
+  if (recorded === null) return ` (annotation records no ${noun}, but one is discoverable now)`;
+  if (discovered === null) return ` (annotation records a ${noun}, but none is discoverable now)`;
+  return ` (does not match the currently discovered ${noun})`;
+}
+
 /** Recompute the source a CURRENT trusted job would carry — from trusted canonical
  * metadata plus the live README ref — exactly as the planner does. */
 function expectedSourceFor(
@@ -196,8 +205,19 @@ export async function verifyAnnotationProvenance(
 
     if (annotation.source.repo_metadata_sha256 !== expected.repoMetadataSha256)
       add('stale canonical metadata fingerprint'); // PROV-4
-    if (annotation.source.readme_oid !== expected.readmeOid) add('stale README OID'); // PROV-3
-    if (annotation.source.readme_path !== expected.readmePath) add('stale README path');
+    // PROV-3 — the verifier observes a mismatch, never history: an invented
+    // annotation is indistinguishable from a stale one, so the appended cause is
+    // observational ("records X, discovery finds Y"), chosen per field. The
+    // stable "stale README …" prefixes are an interface (tests and operators
+    // match on them); only the parenthetical varies.
+    if (annotation.source.readme_oid !== expected.readmeOid)
+      add(
+        `stale README OID${readmeCause(annotation.source.readme_oid, expected.readmeOid, 'README')}`,
+      );
+    if (annotation.source.readme_path !== expected.readmePath)
+      add(
+        `stale README path${readmeCause(annotation.source.readme_path, expected.readmePath, 'README path')}`,
+      );
     if (annotation.source.kind !== expected.sourceKind)
       add('source kind does not match current discovery');
     if (annotation.source.fingerprint !== expected.fingerprint)
@@ -243,9 +263,9 @@ export interface ProvenanceGitContext {
 }
 
 function readAnnotationsAtRef(ref: string, cwd: string): Annotation[] {
-  const text = tryReadArtifactAtRef(ref, 'ai-annotations.json', cwd);
-  if (text === null) return []; // no AI artifacts at this ref yet (first AI PR)
-  return AiAnnotationsSchema.parse(JSON.parse(text)).annotations;
+  const bytes = tryReadArtifactAtRef(ref, 'ai-annotations.json', cwd);
+  if (bytes === null) return []; // no AI artifacts at this ref yet (first AI PR)
+  return AiAnnotationsSchema.parse(JSON.parse(bytes.toString('utf8'))).annotations;
 }
 
 /**
@@ -260,13 +280,23 @@ export async function verifyAiProvenanceFromGit(
   const cwd = ctx.cwd ?? process.cwd();
   const dataset = loadCanonicalDataset(
     readArtifactAtRef(ctx.baseRef, 'stars.json', cwd),
-    readArtifactAtRef(ctx.baseRef, 'dataset-meta.json', cwd),
+    readArtifactAtRef(ctx.baseRef, 'dataset-meta.json', cwd).toString('utf8'),
   );
-  const headAnnotationsText = readArtifactAtRef(ctx.headGitRef, 'ai-annotations.json', cwd);
-  const headMetaText = readArtifactAtRef(ctx.headGitRef, 'ai-annotations-meta.json', cwd);
-  verifyAiArtifacts(headAnnotationsText, headMetaText); // PUB-2/PUB-5: schema + exact hash
-  const baseAnnotationsText = tryReadArtifactAtRef(ctx.baseRef, 'ai-annotations.json', cwd);
-  if (baseAnnotationsText !== null && baseAnnotationsText === headAnnotationsText) {
+  const headAnnotationsBytes = readArtifactAtRef(ctx.headGitRef, 'ai-annotations.json', cwd);
+  const headAnnotationsText = headAnnotationsBytes.toString('utf8');
+  const headMetaText = readArtifactAtRef(ctx.headGitRef, 'ai-annotations-meta.json', cwd).toString(
+    'utf8',
+  );
+  verifyAiArtifacts(headAnnotationsBytes, headMetaText); // PUB-2/PUB-5: schema + exact hash
+  const baseAnnotationsBytes = tryReadArtifactAtRef(ctx.baseRef, 'ai-annotations.json', cwd);
+  // The metadata-only refusal below is a SEMANTIC no-op check, deliberately on
+  // decoded content rather than bytes: a decode-alike byte rewrite still
+  // carries "no annotation change" and is refused the same way. Byte integrity
+  // is enforced separately, by verifyAiArtifacts above over the exact bytes.
+  if (
+    baseAnnotationsBytes !== null &&
+    baseAnnotationsBytes.toString('utf8') === headAnnotationsText
+  ) {
     return {
       ok: false,
       violations: [

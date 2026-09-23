@@ -53,4 +53,27 @@ describe('classifier CLI enablement', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('ENTRY-1: the root (no-subcommand) config check still executes through the entry path', () => {
+    // Guards the #56 split: if the default action were lost in the cli.ts →
+    // program.ts move, the bare CLI would print help instead of the config
+    // report and this exact-output assertion would fail.
+    const dir = mkdtempSync(join(tmpdir(), 'starledger-classifier-cli-'));
+    try {
+      const config = join(dir, 'ai.yaml');
+      writeFileSync(config, 'ai:\n  enabled: false\n', 'utf8');
+      const stdout = execFileSync(
+        process.execPath,
+        ['--import', 'tsx', 'packages/classifier/src/cli.ts', '--config', config],
+        {
+          cwd: root,
+          encoding: 'utf8',
+          env: { ...process.env, STAR_SYNC_TOKEN: '', GITHUB_TOKEN: '' },
+        },
+      );
+      expect(stdout).toContain('classifier config OK — enabled=false');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

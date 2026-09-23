@@ -3,6 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- CSP backstop (SEC-B): Pages cannot set headers, so this meta is the only
+         place a policy can live. Asserted by the deploy verify step; see
+         packages/deploy/src/verify.ts before loosening any directive. NB:
+         frame-ancestors is intentionally omitted — it (like X-Frame-Options) is
+         ignored when delivered via <meta>, so clickjacking protection is simply
+         not available on Pages; keeping it here only logged a console error. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"
+    />
     <title>StarLedger</title>
   </head>
   <body>

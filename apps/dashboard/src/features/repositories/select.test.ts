@@ -124,3 +124,32 @@ describe('prepared pipeline (PERF-2 / PERF-3)', () => {
     expect(v.filters.stale).toBe(true);
   });
 });
+
+describe('AI fail-soft filter contract (M0, P7 §2.2)', () => {
+  it('M0-FS-1: dashboardToView neutralizes AI filters when the layer is not ready, keeping others', () => {
+    const state = {
+      ...DEFAULT_DASHBOARD_STATE,
+      categories: ['security'],
+      aiTags: ['llm'],
+      languages: ['Go'],
+    };
+    // ready (default): AI filters pass through
+    expect(dashboardToView(state).filters.categories).toEqual(['security']);
+    expect(dashboardToView(state).filters.aiTags).toEqual(['llm']);
+    // not ready: AI filters neutralized, non-AI filters preserved
+    const notReady = dashboardToView(state, false);
+    expect(notReady.filters.categories).toEqual([]);
+    expect(notReady.filters.aiTags).toEqual([]);
+    expect(notReady.filters.languages).toEqual(['Go']);
+  });
+
+  it('M0-FS-2/3: an AI category filter suppresses base repos only when the layer is ready', () => {
+    const repos = [makeRepo({ node_id: 'R_1' }), makeRepo({ node_id: 'R_2' })];
+    const prepared = prepareRepositories(repos, NOW); // no annotations joined
+    const state = { ...DEFAULT_DASHBOARD_STATE, categories: ['security'] };
+    // ready-but-unannotated: the intended narrowing behavior is intact (→ 0)
+    expect(selectFromPrepared(prepared, dashboardToView(state, true))).toHaveLength(0);
+    // unavailable: base entities preserved, never blanked (the shipped bug)
+    expect(selectFromPrepared(prepared, dashboardToView(state, false))).toHaveLength(2);
+  });
+});

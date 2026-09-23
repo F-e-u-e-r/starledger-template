@@ -46,12 +46,13 @@ Out of scope: dashboard/UI (P1), notifier (P2), AI/README (P3), template/action 
 
 ## 3. Authentication model
 
-| Token                    | Use                         | Notes                                                                |
-| ------------------------ | --------------------------- | -------------------------------------------------------------------- |
-| `STAR_SYNC_TOKEN`        | read the viewer's stars     | fine-grained PAT, read-only, `Starring: read`; no write to the repo. |
-| `GITHUB_TOKEN` (Actions) | commit + push, deploy Pages | `permissions: contents: write`; auto-injected.                       |
+| Token                      | Use                                                                            | Notes                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `STAR_SYNC_TOKEN`          | read the viewer's stars + public repo metadata                                 | fine-grained PAT, read-only, `Starring: read`; **not** used for git publication.                                         |
+| Dedicated GitHub App token | `sync-stars.yml` checkout + push to publish `stars.json` + `dataset-meta.json` | repository-scoped installation token; the App is the ruleset bypass actor; replaces the old `GITHUB_TOKEN` publish path. |
+| `GITHUB_TOKEN` (Actions)   | available to Actions; deploy Pages                                             | auto-injected; **not** the dataset publication credential.                                                               |
 
-`viewer.starredRepositories` resolves to the token owner; `GITHUB_TOKEN` is `github-actions[bot]` (no stars) → cannot enumerate.
+`viewer.starredRepositories` resolves to the `STAR_SYNC_TOKEN` owner; `GITHUB_TOKEN` is `github-actions[bot]` (no stars) → cannot enumerate.
 
 ---
 
@@ -139,22 +140,22 @@ Exit codes: **0** published (or unchanged) · **20** deferred (remote last-known
 
 ## 9. Acceptance tests — 90 green across 16 files
 
-| Group                | IDs                                           | Status                        |
-| -------------------- | --------------------------------------------- | ----------------------------- |
-| Release              | REL-1..3                                      | ✅                            |
-| Enumeration limit    | LIM-1, LIM-2, LIM-3                           | ✅                            |
-| REST enumeration     | REST-1..5, missing-starred_at, dropped, DET-3 | ✅                            |
-| Hydrate / bisection  | HYD-1..3, BIS-1..6                            | ✅                            |
-| Retry / rate limit   | RATE-1..6, secondary-cooldown                 | ✅                            |
-| Degraded gate        | DEG-1..7                                      | ✅                            |
-| Duplicate conflict   | DUP-1..4                                      | ✅                            |
-| Publication          | PUB-1..8, HASH-1                              | ✅ (FakeGit) + real-git smoke |
-| Empty guard (F2)     | EMPTY-1..5                                    | ✅                            |
-| Security             | SEC-1, SEC-2, strict-schema (no is_private)   | ✅                            |
-| Budget               | BUD-1 (telemetry), BUD-2 (reserve floor)      | ✅                            |
-| Run-level            | PRIV-1/2, DEG-3/5/6, HASH-2, REL-GATE-2       | ✅                            |
-| Release gate         | REL-GATE-1 (`pnpm release-gate`)              | ✅ + public-PAT smoke (CI)    |
-| Determinism / schema | DET-1, DET-2, SCHEMA cross-field              | ✅                            |
+| Group                | IDs                                           | Status                            |
+| -------------------- | --------------------------------------------- | --------------------------------- |
+| Release              | REL-1..3                                      | ✅                                |
+| Enumeration limit    | LIM-1, LIM-2, LIM-3                           | ✅                                |
+| REST enumeration     | REST-1..5, missing-starred_at, dropped, DET-3 | ✅                                |
+| Hydrate / bisection  | HYD-1..3, BIS-1..6                            | ✅                                |
+| Retry / rate limit   | RATE-1..6, secondary-cooldown                 | ✅                                |
+| Degraded gate        | DEG-1..7                                      | ✅                                |
+| Duplicate conflict   | DUP-1..4                                      | ✅                                |
+| Publication          | PUB-1..8, HASH-1                              | ✅ (FakeGit) + real-git smoke     |
+| Empty guard (F2)     | EMPTY-1..5                                    | ✅                                |
+| Security             | SEC-1, SEC-2, strict-schema (no is_private)   | ✅                                |
+| Budget               | BUD-1 (telemetry), BUD-2 (reserve floor)      | ✅                                |
+| Run-level            | PRIV-1/2, DEG-3/5/6, HASH-2, REL-GATE-2       | ✅                                |
+| Release gate         | REL-GATE-1 (`pnpm release-gate`)              | ✅ + public-PAT smoke (manual CI) |
+| Determinism / schema | DET-1, DET-2, SCHEMA cross-field              | ✅                                |
 
 ---
 
@@ -169,7 +170,7 @@ Exit codes: **0** published (or unchanged) · **20** deferred (remote last-known
 | P0.5 | retry coordinator · bisection · degraded gate · duplicate-conflict restart · validated single-commit publication   | ✅     |
 | P0.6 | empty guard (F2) · secret redaction · budget telemetry + reserve floor · release gate + real-git/public-PAT smokes | ✅     |
 
-**P0 is complete.** Per the agreed exit condition: both paths produce the same deterministic dataset; incomplete / suspiciously-empty / over-threshold / invalid / rate-limited / publication-failed runs cannot modify the remote last-known-good; budget and reliability are observable; and the full release gate passes against real Git (public-PAT smoke runs in CI).
+**P0 is complete.** Per the agreed exit condition: both paths produce the same deterministic dataset; incomplete / suspiciously-empty / over-threshold / invalid / rate-limited / publication-failed runs cannot modify the remote last-known-good; budget and reliability are observable; and the full release gate passes against real Git (public-PAT smoke is available as a manual hosted CI check).
 
 > **Private repositories are not a publication-blocking condition.** Upstream results containing private repositories may still publish after filtering — the invariant (I1/D5) is that **no private repository or internal field may enter the canonical dataset**, not that the run fails. `private_filtered > 0` is a credential-hygiene warning in run-meta, and the public-only PAT smoke asserts `private_filtered == 0`.
 

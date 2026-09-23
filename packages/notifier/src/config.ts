@@ -94,7 +94,15 @@ export const NotifierConfigSchema = z
 export type NotifierConfig = z.infer<typeof NotifierConfigSchema>;
 
 export function loadNotifierConfig(path?: string): NotifierConfig {
-  if (path !== undefined && existsSync(path)) {
+  if (path !== undefined) {
+    // An explicitly-supplied path that does not exist is a typo, NOT a request
+    // for defaults. Falling back is especially dangerous here: the default
+    // config polls `maguowei/awesome-stars` and, with credentials present, would
+    // start delivering Telegram notifications for a repo the operator never
+    // configured (B1). Fail closed.
+    if (!existsSync(path)) {
+      throw new TerminalError(`config file not found: ${path}`, 'CONFIG_NOT_FOUND');
+    }
     const raw: unknown = parseYaml(readFileSync(path, 'utf8')) ?? {};
     return NotifierConfigSchema.parse(raw);
   }

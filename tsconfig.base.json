@@ -24,7 +24,11 @@
       "@starred/github-client": ["packages/github-client/src"],
       "@starred/ai-schema": ["packages/ai-schema/src"],
       "@starred/ai-schema/contracts": ["packages/ai-schema/src/contracts"],
-      "@starred/classifier": ["packages/classifier/src"]
+      "@starred/skills-schema": ["packages/skills-schema/src"],
+      "@starred/skills-schema/contracts": ["packages/skills-schema/src/contracts"],
+      "@starred/classifier": ["packages/classifier/src"],
+      "@starred/discovery": ["packages/discovery/src"],
+      "@starred/discovery/contracts": ["packages/discovery/src/contracts"]
     }
   }
 }

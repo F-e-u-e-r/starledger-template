@@ -26,8 +26,8 @@ const CONFIG = aiConfig();
 const REF = { path: 'README.md', oid: 'oid-1' };
 
 function load(repos: CanonicalRepo[]) {
-  const { starsText, metaText } = makeDataset(repos);
-  return loadCanonicalDataset(starsText, metaText);
+  const { starsBytes, metaText } = makeDataset(repos);
+  return loadCanonicalDataset(starsBytes, metaText);
 }
 
 function sourceFor(repos: CanonicalRepo[], ref = REF): FakeReadmeSource {
@@ -90,6 +90,95 @@ describe('annotation provenance gate', () => {
     });
     expect(result.ok).toBe(false);
     expect(result.violations.some((v) => v.reason.includes('README OID'))).toBe(true);
+    expect(
+      result.violations.some((v) =>
+        v.reason.includes('stale README OID (does not match the currently discovered README)'),
+      ),
+    ).toBe(true);
+  });
+
+  it('PROV-3: an annotation recording no README while one is discoverable names that direction', async () => {
+    // The 2026-07-16 incident shape: plan-time discovery spuriously reported "no
+    // README", the artifact recorded a metadata-only source, live discovery finds
+    // the README — the message must say so instead of implying the README changed.
+    const a = repo('a');
+    const dataset = load([a]);
+    const ann = makeAnnotationFor(a, expectedFingerprint(a, CONFIG, null), null);
+    const result = await verifyAnnotationProvenance({
+      repos: dataset.repos,
+      datasetSha256: dataset.datasetSha256,
+      baseAnnotations: [],
+      headAnnotations: [ann],
+      headMetaDatasetSha256: dataset.datasetSha256,
+      source: sourceFor([a]),
+      config: CONFIG,
+      maxChangedPerRun: 25,
+    });
+    expect(result.ok).toBe(false);
+    expect(
+      result.violations.some((v) =>
+        v.reason.includes(
+          'stale README OID (annotation records no README, but one is discoverable now)',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      result.violations.some((v) =>
+        v.reason.includes(
+          'stale README path (annotation records no README path, but one is discoverable now)',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('PROV-3: an annotation recording a README while none is discoverable names that direction', async () => {
+    const a = repo('a');
+    const dataset = load([a]);
+    const ann = makeAnnotationFor(a, expectedFingerprint(a, CONFIG, REF), REF);
+    const result = await verifyAnnotationProvenance({
+      repos: dataset.repos,
+      datasetSha256: dataset.datasetSha256,
+      baseAnnotations: [],
+      headAnnotations: [ann],
+      headMetaDatasetSha256: dataset.datasetSha256,
+      source: new FakeReadmeSource(readmeEntries({})),
+      config: CONFIG,
+      maxChangedPerRun: 25,
+    });
+    expect(result.ok).toBe(false);
+    expect(
+      result.violations.some((v) =>
+        v.reason.includes(
+          'stale README OID (annotation records a README, but none is discoverable now)',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('PROV-3: a README path that moved names the path mismatch, not the OID', async () => {
+    const a = repo('a');
+    const dataset = load([a]);
+    const movedRef = { path: 'docs/README.md', oid: REF.oid };
+    const ann = makeAnnotationFor(a, expectedFingerprint(a, CONFIG, movedRef), movedRef);
+    const result = await verifyAnnotationProvenance({
+      repos: dataset.repos,
+      datasetSha256: dataset.datasetSha256,
+      baseAnnotations: [],
+      headAnnotations: [ann],
+      headMetaDatasetSha256: dataset.datasetSha256,
+      source: sourceFor([a]),
+      config: CONFIG,
+      maxChangedPerRun: 25,
+    });
+    expect(result.ok).toBe(false);
+    expect(
+      result.violations.some((v) =>
+        v.reason.includes(
+          'stale README path (does not match the currently discovered README path)',
+        ),
+      ),
+    ).toBe(true);
+    expect(result.violations.some((v) => v.reason.includes('stale README OID'))).toBe(false);
   });
 
   it('PROV-4: a stale canonical metadata fingerprint is rejected', async () => {
@@ -252,6 +341,7 @@ describe('annotation provenance gate', () => {
     const result = assembleAiArtifacts({
       currentAnnotations: [ann],
       validatedCandidates: [],
+      canonicalNodeIds: new Set([a.node_id]),
       datasetSha256: 'd'.repeat(64),
       generatedAt: '2026-06-21T00:00:00Z',
     });

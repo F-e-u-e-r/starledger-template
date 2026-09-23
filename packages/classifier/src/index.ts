@@ -11,6 +11,9 @@ export * from './readme-source';
 export * from './state';
 export * from './state-store';
 export * from './planner';
+export * from './prune-orphans';
 export * from './provenance';
+export * from './meta-rebase';
+export * from './meta-rebase-cli';
 
 export const CLASSIFIER_VERSION = '0.4.0';

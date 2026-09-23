@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { redactSecrets } from '@starred/github-client';
 
 const exec = promisify(execFile);
 
@@ -13,6 +14,20 @@ export interface SaveResult {
   committed: boolean;
   /** The commit reached the remote. `false` ⇒ the remote is unchanged. */
   pushed: boolean;
+  /**
+   * Redacted git stderr when the push failed (`committed && !pushed`). Without
+   * this the operator sees exit 20 but cannot tell auth (GH013) from
+   * non-fast-forward from a network fault (B4). Undefined when the push
+   * succeeded or was never attempted.
+   */
+  pushError?: string;
+}
+
+/** Extract a redacted, human-readable reason from a failed `git push`. */
+function pushFailureReason(err: unknown): string {
+  const e = err as { stderr?: Buffer | string; message?: string };
+  const stderr = e.stderr ? e.stderr.toString().trim() : '';
+  return redactSecrets(stderr || e.message || String(err));
 }
 
 /**
@@ -125,8 +140,9 @@ export class GitStateStore implements StateStore {
 
       try {
         await this.git(['push', this.remote, `${commit}:refs/heads/${this.branch}`]);
-      } catch {
-        return { changed: true, committed: true, pushed: false }; // remote unchanged
+      } catch (err) {
+        // remote unchanged; surface WHY (redacted) instead of swallowing it
+        return { changed: true, committed: true, pushed: false, pushError: pushFailureReason(err) };
       }
       return { changed: true, committed: true, pushed: true };
     } finally {

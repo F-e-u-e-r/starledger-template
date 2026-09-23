@@ -1,0 +1,48 @@
+name: Deploy freshness
+
+# OPS-A guard: prove the LIVE site matches main HEAD. The daily sync commits
+# fresh data and relies on a workflow-triggering push token to fire pages.yml
+# (see sync-stars.yml's OPS-A invariant). If that ever breaks, the commit lands
+# but no deploy runs and the site silently freezes on stale data with no failed
+# run to notice. This job turns that invisible failure into a red scheduled run.
+on:
+  schedule:
+    # A few hours after the 05:23 sync + its deploy, so a healthy deploy has
+    # settled. A one-off drift can be a deploy in flight; a persistent red here
+    # is the silent-freeze signal.
+    - cron: '41 9 * * *'
+  workflow_dispatch:
+
+# Strictly read-only: this monitor never writes to the repo, needs no Pages or
+# id-token permission, and uses NO secret — it reads committed data and fetches
+# only the PUBLIC published artifact.
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-freshness
+  cancel-in-progress: true
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: main
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Compares the public live dataset-meta.json against main HEAD's committed
+      # copy. Exits non-zero on drift (GitHub notifies on a failed scheduled run)
+      # or if the live site is unreachable/malformed — we never conclude "fresh"
+      # from a site we could not read. The live URL is derived from
+      # GITHUB_REPOSITORY; pass --url to override for a custom domain.
+      - name: check deploy freshness
+        run: pnpm exec tsx packages/deploy/src/cli.ts freshness --data .

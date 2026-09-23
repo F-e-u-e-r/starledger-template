@@ -103,6 +103,9 @@ export function changedPathEntriesBetween(
     {
       encoding: 'buffer',
       cwd,
+      // Node's default 1MB maxBuffer would ENOBUFS-fail (fail-closed but noisy)
+      // on a large diff; match the state stores' 64MB ceiling (B5).
+      maxBuffer: 64 * 1024 * 1024,
     },
   );
   const tokens = output
@@ -152,12 +155,22 @@ export function touchesAiArtifacts(entries: readonly GitDiffEntry[]): boolean {
 }
 
 /**
- * Reads a single path at a Git ref as text, so trusted CI can inspect agent
- * artifacts as data without ever checking out or executing agent-controlled
- * code. Only the fixed AI artifact paths are ever passed here.
+ * Reads a single path at a Git ref as exact BYTES, so trusted CI can inspect
+ * agent artifacts as data without ever checking out or executing
+ * agent-controlled code — and so acceptance digests are computed over the
+ * exact blob bytes, never a lossy decoding (round-9 closure of the
+ * decoded-text digest class: a utf8-decoded read made byte-different,
+ * decode-alike blobs hash alike, so a gate here could accept a PR whose
+ * artifact bytes the deployed runtime then rejects). Only the fixed AI
+ * artifact paths are ever passed here.
  */
-export function readArtifactAtRef(ref: string, path: string, cwd = process.cwd()): string {
-  return execFileSync('git', ['show', `${ref}:${path}`], { encoding: 'utf8', cwd });
+export function readArtifactAtRef(ref: string, path: string, cwd = process.cwd()): Buffer {
+  // The full annotations artifact is read through here; a growing dataset would
+  // exceed Node's default 1MB maxBuffer. Match the state stores' 64MB (B5).
+  return execFileSync('git', ['show', `${ref}:${path}`], {
+    cwd,
+    maxBuffer: 64 * 1024 * 1024,
+  });
 }
 
 /**
@@ -170,7 +183,7 @@ export function tryReadArtifactAtRef(
   ref: string,
   path: string,
   cwd = process.cwd(),
-): string | null {
+): Buffer | null {
   const probe = spawnSync('git', ['cat-file', '-e', `${ref}:${path}`], { cwd });
   if (probe.status !== 0) return null;
   return readArtifactAtRef(ref, path, cwd);

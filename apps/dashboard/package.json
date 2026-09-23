@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@starred/ai-schema": "workspace:*",
+    "@starred/discovery": "workspace:*",
     "@starred/schema": "workspace:*",
+    "@starred/skills-schema": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

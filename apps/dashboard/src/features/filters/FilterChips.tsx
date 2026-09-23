@@ -22,8 +22,28 @@ interface Chip {
 function buildChips(
   state: DashboardState,
   update: (partial: Partial<DashboardState>, mode?: HistoryMode) => void,
+  skillCategoryLabels?: ReadonlyMap<string, string>,
 ): Chip[] {
   const chips: Chip[] = [];
+
+  // Skills layer first, mirroring the canonical emit order (§4.11: view, scope,
+  // skill, then the P1 facets). Chips render for REQUESTED values even while the
+  // layer is not ready — recoverability: removal must always stay possible. The
+  // taxonomy label is used when available; the canonical id slug otherwise.
+  if (state.scope !== 'all') {
+    chips.push({
+      id: 'scope',
+      label: 'Scope: Skills ecosystem',
+      remove: () => update({ scope: 'all' }),
+    });
+  }
+  for (const v of state.skillCategories) {
+    chips.push({
+      id: `skill:${v}`,
+      label: `Skill: ${skillCategoryLabels?.get(v) ?? v}`,
+      remove: () => update({ skillCategories: state.skillCategories.filter((x) => x !== v) }),
+    });
+  }
 
   for (const v of state.languages) {
     chips.push({
@@ -119,13 +139,17 @@ export function FilterChips({
   update,
   onClearAll,
   onAfterRemove,
+  skillCategoryLabels,
 }: {
   state: DashboardState;
   update: (partial: Partial<DashboardState>, mode?: HistoryMode) => void;
   onClearAll: () => void;
   onAfterRemove: () => void;
+  /** Taxonomy labels by category id (§4.11) — present only while the skills
+   *  layer is ready; degraded chips fall back to the canonical id slug. */
+  skillCategoryLabels?: ReadonlyMap<string, string>;
 }) {
-  const chips = buildChips(state, update);
+  const chips = buildChips(state, update, skillCategoryLabels);
   if (chips.length === 0) return null;
 
   return (

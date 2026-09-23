@@ -36,7 +36,9 @@ export function classifyError(err: unknown): ErrorClass {
     return 'terminal'; // permission failure unrelated to rate limit
   }
   if (status === 429) return 'retryable';
-  if (status === 502 || status === 503 || status === 504) return 'retryable';
+  // 5xx are transient server faults: retry (bounded). A malformed request is 400/422
+  // (terminal, above), so 500 here is a server hiccup, not a client error.
+  if (status === 500 || status === 502 || status === 503 || status === 504) return 'retryable';
   if (
     /(timed?\s?out|timeout|etimedout|econnreset|econnrefused|eai_again|socket hang up|network|fetch failed)/i.test(
       message,

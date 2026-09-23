@@ -11,3 +11,11 @@ run-meta.json
 # @starred/ai-schema serialization and verified by schema/hash gates.
 ai-annotations.json
 ai-annotations-meta.json
+
+# M2 skills classification (P7 §4). The vendored source is byte-verbatim
+# EVIDENCE (§4.9 option B — reformatting it would destroy the provenance
+# property); the generated artifacts' canonical bytes are owned by
+# @starred/skills-schema serialization and verified by schema/hash gates.
+skills-classified.md
+skills-classification.json
+skills-classification-meta.json

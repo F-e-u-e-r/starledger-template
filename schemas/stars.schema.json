@@ -148,8 +148,7 @@
                         ]
                       },
                       "url": {
-                        "type": "string",
-                        "format": "uri"
+                        "$ref": "#/definitions/StarsFile/properties/repos/items/properties/url"
                       }
                     },
                     "required": [

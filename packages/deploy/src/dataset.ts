@@ -4,6 +4,7 @@ import {
   DatasetMetaSchema,
   type StarsFile,
   StarsFileSchema,
+  checkCanonicalDatasetInvariants,
 } from '@starred/schema';
 
 export function sha256Hex(text: string): string {
@@ -28,8 +29,17 @@ export interface VerifiedDataset {
  * BEFORE they are shipped: both parse + schema-validate, the stars bytes hash to
  * `dataset-meta.stars_sha256`, `repo_count` matches, and node_ids are unique.
  * Throws {@link DatasetIntegrityError} on any discrepancy; never mutates input.
+ *
+ * `starsBytes` is BYTES, not text, and the parameter type says so deliberately.
+ * Hashing a decoded string re-encodes it, so two byte strings that decode alike
+ * (a BOM, a malformed sequence) hash alike — the build would pass an artifact
+ * the byte-strict runtime loader then rejects, and for the CANONICAL dataset
+ * that means the base dashboard fails closed on a file the build called sound.
+ * Requiring bytes here is what keeps build-time and runtime verification
+ * talking about the same thing.
  */
-export function verifyDatasetIntegrity(starsText: string, metaText: string): VerifiedDataset {
+export function verifyDatasetIntegrity(starsBytes: Uint8Array, metaText: string): VerifiedDataset {
+  const starsText = Buffer.from(starsBytes).toString('utf8');
   let starsJson: unknown;
   let metaJson: unknown;
   try {
@@ -48,21 +58,14 @@ export function verifyDatasetIntegrity(starsText: string, metaText: string): Ver
   const stars = StarsFileSchema.safeParse(starsJson);
   if (!stars.success) throw new DatasetIntegrityError('stars.json failed schema validation');
 
-  const seen = new Set<string>();
-  for (const repo of stars.data.repos) {
-    if (seen.has(repo.node_id)) {
-      throw new DatasetIntegrityError(`duplicate node_id ${repo.node_id}`);
-    }
-    seen.add(repo.node_id);
-  }
-
-  const hash = sha256Hex(starsText);
+  const hash = createHash('sha256').update(Buffer.from(starsBytes)).digest('hex');
   if (meta.data.stars_sha256 !== hash) {
     throw new DatasetIntegrityError('dataset-meta.stars_sha256 does not match stars.json bytes');
   }
-  if (meta.data.repo_count !== stars.data.repos.length) {
-    throw new DatasetIntegrityError('dataset-meta.repo_count does not match stars.json');
-  }
+  // Structural invariants come from the SHARED primitive so build-time and
+  // runtime acceptance cannot drift apart (owner ruling R6-S1).
+  const problems = checkCanonicalDatasetInvariants(stars.data, meta.data);
+  if (problems.length > 0) throw new DatasetIntegrityError(problems[0]!);
 
   return { stars: stars.data, meta: meta.data, sha256: hash };
 }

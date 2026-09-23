@@ -1,0 +1,16 @@
+export {
+  DISCOVERY_SCHEMA_VERSION,
+  DISCOVERY_VERSION,
+  SourceKindSchema,
+  type SourceKind,
+  DiscoverySourceSchema,
+  type DiscoverySource,
+  CandidateStatusSchema,
+  type CandidateStatus,
+  DiscoveryCandidateSchema,
+  type DiscoveryCandidate,
+  DiscoveryCandidatesFileSchema,
+  type DiscoveryCandidatesFile,
+  DiscoveryCandidatesMetaSchema,
+  type DiscoveryCandidatesMeta,
+} from './schemas';

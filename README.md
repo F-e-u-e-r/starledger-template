@@ -1,5 +1,7 @@
 # StarLedger
 
+![status](https://img.shields.io/badge/status-ACTIVE-7aa2ff)
+
 Your own GitHub stars **dashboard**, optional Telegram **notifier**, and optional
 **AI enrichment** — deployed entirely on infrastructure you own. No central
 service, no shared backend, no key custody: StarLedger only ever uses **your**

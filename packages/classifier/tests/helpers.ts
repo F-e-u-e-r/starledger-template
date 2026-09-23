@@ -50,6 +50,8 @@ export function repo(id: string, overrides: Partial<CanonicalRepo> = {}): Canoni
 
 export interface DatasetText {
   starsText: string;
+  /** The exact UTF-8 bytes of `starsText` — what `loadCanonicalDataset` consumes. */
+  starsBytes: Buffer;
   metaText: string;
   datasetSha256: string;
 }
@@ -57,6 +59,8 @@ export interface DatasetText {
 /** Serialize repos into matching stars.json + dataset-meta.json bytes. */
 export function makeDataset(repos: readonly CanonicalRepo[]): DatasetText {
   const starsText = JSON.stringify({ schema_version: '1.0', repos }, null, 2) + '\n';
+  // Generation-side digest of the string written verbatim as UTF-8 — equal to
+  // the byte digest of `starsBytes` by construction.
   const datasetSha256 = sha256(starsText);
   const metaText =
     JSON.stringify(
@@ -69,7 +73,7 @@ export function makeDataset(repos: readonly CanonicalRepo[]): DatasetText {
       null,
       2,
     ) + '\n';
-  return { starsText, metaText, datasetSha256 };
+  return { starsText, starsBytes: Buffer.from(starsText, 'utf8'), metaText, datasetSha256 };
 }
 
 export function aiConfig(ai: Record<string, unknown> = {}): PlannerConfig {

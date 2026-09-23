@@ -206,7 +206,8 @@ hash, artifact order,
 publication decision, executor binding, or files outside the path allowlist.
 
 For a Claude Routine, preserve the default restricted `claude/` branch policy;
-do not enable unrestricted pushes or auto-merge. For Codex App Automation, use a
+do not enable unrestricted pushes, and merge only via GitHub auto-merge gated by
+the required trusted checks. For Codex App Automation, use a
 new worktree so an automation cannot alter an active local working tree. The
 Codex machine must remain available for project-scoped scheduled runs, so it is
 a fallback rather than a second simultaneous writer.
@@ -247,14 +248,17 @@ blocking, and the agent diff allowlist.
   discovery, and rejects any changed annotation that does not match a current job
   — stale fingerprint/OID/metadata, invented node, wrong `dataset_sha256`, wrong
   executor/profile, or an over-budget delta.
-- **P3.3 publication (delivered):** validated artifacts publish through a reviewed
-  merge; the Pages workflow stages them fail-soft and deploys the merged commit.
+- **P3.3 publication (delivered):** validated artifacts publish through GitHub
+  auto-merge after the required trusted checks pass against current `main`; the
+  Pages workflow stages them fail-soft and deploys the merged commit.
   Operational state on `starledger-ai-state` is written only by the trusted
   `ai-state` workflow, never by an executor.
 
 With the P3.3 provenance gate in place an executor may run, but keep BOTH
-`verify-agent-artifacts` and `verify-ai-provenance` required on `main`, and do not
-auto-merge agent PRs — every AI artifact still publishes through human review.
+`verify-agent-artifacts` and `verify-ai-provenance` required on `main`; executor
+PRs merge only via GitHub auto-merge after those required checks pass against
+current `main`, with a periodic human sample audit covering the semantics the
+gates cannot.
 
 ## P3.0 exit conditions
 
@@ -398,11 +402,14 @@ gate reject timestamp-only or metadata-only artifact updates, so an unchanged ru
 produces no churn.
 
 **Publication.** Remote Git remains the publication boundary: valid PR → structural
-gate → provenance gate → human review → merge. The Pages workflow stages the AI
+gate → provenance gate → merge (GitHub auto-merge once the required checks are
+green; a periodic human sample audit covers semantics). The Pages workflow stages the AI
 artifacts into the deployed site FAIL-SOFT — a missing, malformed, or
 hash-mismatched pair is skipped, never blocking the canonical deployment — and a
 merge that changes the artifacts triggers a Pages deploy of the merged commit.
-Auto-merge stays disabled in v1.
+Executor artifact PRs may use GitHub auto-merge after all required trusted
+checks pass against current `main`; the executor cannot bypass checks or merge
+directly.
 
 **Operational state.** The `starledger-ai-state` branch (`classifier-state.json`)
 is written ONLY by the trusted `ai-state.yml` workflow, never by an executor: it
@@ -447,7 +454,7 @@ remains valid when they are absent (DEPLOY-2).
 ## P3.5 — closeout and the semantic-search decision
 
 P3.5 delivers the semantic-search ADR and validates live artifact publication;
-the final operational closeout remains pending.
+the final operational closeout is complete (2026-07-29, recorded below).
 Required P3 search is lexical over name, GitHub description, topics, language, and
 the AI category/tags/summary. True vector search is DEFERRED
 to a future hosted phase unless a client-side experiment proves it adds relevance
@@ -458,17 +465,50 @@ with no secret/backend and acceptable size + latency — see
 runs produced and merged PRs #17, #18, and #20. Each changed only the public
 artifact pair, passed CI plus the structural and provenance gates, and deployed
 through Pages. The public artifact bytes and metadata hashes were verified against
-`main`; the current published coverage is five annotations out of 492 canonical
-repositories. The third run exercised the configured `max_total_per_run: 3`
-budget without exceeding it.
+`main`; the published coverage was five annotations out of the 492 canonical
+repositories present at the time (an early snapshot — the scheduled executor
+later drained the backlog to 697 of 697; see the closeout record below). The
+third run exercised the configured
+`max_total_per_run: 3` budget without exceeding it.
 
-**Final operational closeout remains pending.** `verify-ai-provenance` remains
-required alongside `verify-agent-artifacts` and CI on `main`. Continue bounded,
-manual backfill with exactly one executor enabled. Before P3 is fully closed,
-visually confirm the public dashboard's category/tag facets and secondary summary,
-then run the executor unchanged after the current collection is fully accounted
-for and prove it produces neither an artifact PR nor byte churn. Existing fixture
-and no-op tests support this behavior but do not replace the required live replay.
+**Operational closeout — complete (2026-07-29).** `verify-ai-provenance`
+remains required alongside `verify-agent-artifacts` and CI on `main`. The hourly
+scheduled executor remains enabled for steady-state enrichment of newly starred
+repositories and pruning of removed repositories.
+
+- ✅ **Public-dashboard visual confirmation — DONE.** Verified live at
+  `https://f-e-u-e-r.github.io/starledger/` under the new strict CSP: React
+  mounts and the stylesheet applies (the CSP does not break the app), and the
+  category/tag facets, AI badge, secondary summary, AI tags, the "N of M
+  enriched" counter (then `5 of 550`), and AI-aware search all render.
+- ✅ **No-churn replay, deterministic half — DONE (offline).**
+  `classifier verify-artifacts` passes on the committed pair, re-serializing the
+  committed annotations is byte-identical, and the meta `annotations_sha256` +
+  `annotation_count` match. So the assembler produces zero byte churn on an
+  unchanged set (`assemble.test.ts` ART-3). The planner half is covered by the
+  same offline seam: an unchanged README OID is bucketed `skip-current` and
+  emits no job without downloading content (`planner.test.ts` README-2, PLAN-2),
+  and a whole already-annotated corpus at current fingerprints plans zero jobs
+  and fetches zero READMEs (`planner.test.ts` NOCHURN-1). These fixtures stand in
+  for, but do not replace, the credentialed live replay below.
+- ✅ **No-churn replay, live half — DONE (credentialed, full-corpus).** On
+  2026-07-29 a full-corpus `pnpm classifier plan --current ai-annotations.json`
+  run against live README OIDs emitted **0 jobs** and **0 omitted-unfetchable**
+  with the backlog drained (node_id set equality: missing/extra/duplicates all
+  0; 697 of 697 annotated). Hosted run:
+  https://github.com/F-e-u-e-r/starledger/actions/runs/30500689860 at base
+  `b5afa9d0134143e3126cbdd6b89872b8a5cb388a`, dataset
+  `dd071ea9da3c4970187af54b68f163ee47750e0e5489cbe502859e1e8015e935`. P3 is
+  therefore **✅ complete**.
+
+**Backlog drain — status (updated 2026-07-29).** The backlog is drained: 697 of
+697 canonical repositories are annotated (node_id set equality, missing/extra/
+duplicates all 0 at base `b5afa9d`), and the removed-star lifecycle is
+implemented and production-proven (PR #213; first live prune PR #214). The
+hourly executor stays enabled as steady-state operation — new stars are
+classified within a run, removed stars are pruned, and an empty manifest is
+healthy steady state, never a disable signal (routine spec prompt step 3). P3
+is **✅ complete** per the completion gate recorded above.
 
 `pnpm p3-gate` is the aggregate gate: typecheck, lint, format, the full test suite
 (AI schema drift, fingerprint/planner, injection fixtures, structural + provenance
@@ -478,8 +518,10 @@ build, and generated-schema drift.
 ## P3 exit conditions
 
 The contract, gate, and implementation conditions below are met and tested. Live
-artifact publication is also verified; the visible-dashboard check and no-churn
-replay remain pending the operational closeout above.
+artifact publication is verified, and (2026-07-08) the visible-dashboard check is
+DONE and the deterministic no-churn replay is verified offline; the backlog
+drain and the live credentialed planner replay completed 2026-07-29 per the
+operational closeout above.
 
 - canonical stars remain untouched by AI;
 - jobs are generated only by trusted deterministic code;
@@ -490,9 +532,11 @@ replay remain pending the operational closeout above.
 - the dashboard works fully without AI (fail-soft) and fails closed only on
   canonical data;
 - public AI artifact deployment is hash-verified against `main`;
-- live AI facets, secondary summaries, and AI-aware search still need visual
-  confirmation on the public dashboard;
-- an unchanged live run produces no artifact churn after bounded backfill;
+- live AI facets, secondary summaries, and AI-aware search are visually confirmed
+  on the public dashboard (2026-07-08);
+- an unchanged run produces no artifact churn: proven offline via the
+  deterministic assembler replay and live via the credentialed full-corpus
+  zero-job replay (run 30500689860, 2026-07-29);
 - semantic search is explicitly deferred by ADR-001 (lexical search shipped).
 
 ## Subsequent milestones
@@ -509,8 +553,10 @@ replay remain pending the operational closeout above.
 - **P3.4 (implementation delivered):** fail-soft AI loading with strict contract
   validation, node-id join, category/AI-tag facets with URL state, AI-aware lexical
   search, secondary labelled card summaries, and a coverage count.
-- **P3.5 (ADR and live artifact publication delivered; final closeout pending):**
-  vector search is deferred and lexical search shipped. Three validated Claude
-  Routine artifact PRs have merged and deployed five annotations under bounded
-  budgets. Public dashboard visual confirmation and the post-backfill no-churn
-  replay remain pending.
+- **P3.5 (delivered; closeout complete 2026-07-29):** vector search is deferred
+  and lexical search shipped. Three validated Claude Routine artifact PRs merged
+  and deployed the first five annotations under bounded budgets. Public
+  dashboard visual confirmation is DONE (2026-07-08), the deterministic no-churn
+  replay is verified offline, and the live credentialed planner replay passed
+  full-corpus with zero jobs (run 30500689860 at base `b5afa9d`) — P3 is
+  ✅ complete.

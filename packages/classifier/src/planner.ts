@@ -58,6 +58,12 @@ export interface PlanResult {
   manifest: ClassificationManifest;
   nextState: ClassifierState;
   decisions: PlanDecision[];
+  /** Selected jobs dropped because the probed README's bytes were not fetchable
+   * this run (see the omit path). Surfaced so an operator can tell "manifest is
+   * empty because the backlog is DONE" apart from "empty because the remaining
+   * repos are being omitted every run" — the latter must not trigger the
+   * runbook's disable-the-routine guidance. */
+  omittedUnfetchable: string[];
 }
 
 interface PlannedRepository {
@@ -286,42 +292,40 @@ export async function planClassification(input: PlanInput): Promise<PlanResult> 
   );
 
   const jobs: ClassificationJob[] = [];
+  const omittedUnfetchable: string[] = [];
   for (const plan of selected) {
     plan.decision.selected = true;
     const coords = { owner: plan.repo.owner, name: plan.repo.name };
-    const fingerprintFor = (
-      kind: AnnotationSourceKind,
-      readmePath: string | null,
-      readmeOid: string | null,
-    ): string =>
-      sourceFingerprint({
-        nodeId: plan.repo.node_id,
-        sourceKind: kind,
-        readmePath,
-        readmeOid,
-        repoMetadataSha256: plan.repoMetadataSha256,
-        taxonomyVersion: TAXONOMY_VERSION,
-        promptVersion,
-        executionProfileVersion: profileVersion,
-        executorKind,
-      });
 
     let readmeInput: ClassificationReadmeInput | null = null;
     if (plan.ref !== null) {
       const raw = await source.getReadmeContent(coords, plan.ref.path);
       if (raw === null) {
-        // README disappeared between probe and fetch → classify from metadata.
-        plan.entry.readme_path = null;
-        plan.entry.readme_oid = null;
-        plan.decision.source_kind = 'metadata';
-        plan.decision.fingerprint = fingerprintFor('metadata', null, null);
-      } else {
-        readmeInput = {
-          path: plan.ref.path,
-          oid: plan.ref.oid,
-          content: preprocessReadme(raw, { maxChars: config.readme_max_chars }),
-        };
+        // The probe said "readme" but the bytes are not fetchable this run (the
+        // README vanished/moved mid-run, or a knownPath OID hit on a path that is
+        // no longer the loadable preferred README). Demoting IN PLACE to a
+        // metadata-kind job is forbidden: the provenance gate rediscovers refs
+        // WITHOUT content, so it can still see a usable README and would reject
+        // the artifact as stale — the exact plan/gate split behind PRs #91/#92.
+        // OMIT the job instead and carry the repo's PRIOR state forward
+        // untouched, so the next run re-probes and plans consistently end to
+        // end. The consumed selection slot is deliberately NOT backfilled — the
+        // run budget stays a hard ceiling on probe/fetch work.
+        plan.decision.selected = false;
+        omittedUnfetchable.push(plan.repo.node_id);
+        const queued = nextEntries.indexOf(plan.entry);
+        const prior = priorByNode.get(plan.repo.node_id);
+        if (queued !== -1) {
+          if (prior !== undefined) nextEntries[queued] = prior;
+          else nextEntries.splice(queued, 1);
+        }
+        continue;
       }
+      readmeInput = {
+        path: plan.ref.path,
+        oid: plan.ref.oid,
+        content: preprocessReadme(raw, { maxChars: config.readme_max_chars }),
+      };
     }
 
     jobs.push(
@@ -355,5 +359,5 @@ export async function planClassification(input: PlanInput): Promise<PlanResult> 
     repos: byNodeId(nextEntries.filter(isMeaningful)),
   });
 
-  return { manifest, nextState, decisions };
+  return { manifest, nextState, decisions, omittedUnfetchable };
 }

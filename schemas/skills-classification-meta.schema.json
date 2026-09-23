@@ -1,0 +1,105 @@
+{
+  "$comment": "Structural projection generated from @starred/skills-schema (Zod, the single source of truth). Zod .refine/.superRefine constraints (scalar shape and character rules, normalization, I-1..I-6 and cross-field invariants) do not translate to JSON Schema, so passing this file does NOT establish contract validity (P7 section 4.0). Do not use as a complete validator.",
+  "$ref": "#/definitions/SkillsClassificationMeta",
+  "definitions": {
+    "SkillsClassificationMeta": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "taxonomy_version": {
+          "type": "string",
+          "const": "skills-1"
+        },
+        "classification_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_sha256": {
+          "$ref": "#/definitions/SkillsClassificationMeta/properties/classification_sha256"
+        },
+        "aliases_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SkillsClassificationMeta/properties/classification_sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prior_classification_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SkillsClassificationMeta/properties/classification_sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generated_against_stars_sha256": {
+          "$ref": "#/definitions/SkillsClassificationMeta/properties/classification_sha256"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "category_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_entry_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resolved_entry_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "present_repo_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "absent_repo_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unresolved_entry_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "canonical_repo_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unclassified_repo_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "schema_version",
+        "taxonomy_version",
+        "classification_sha256",
+        "source_sha256",
+        "aliases_sha256",
+        "prior_classification_sha256",
+        "generated_against_stars_sha256",
+        "generated_at",
+        "category_count",
+        "source_entry_count",
+        "resolved_entry_count",
+        "present_repo_count",
+        "absent_repo_count",
+        "unresolved_entry_count",
+        "canonical_repo_count",
+        "unclassified_repo_count"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+}

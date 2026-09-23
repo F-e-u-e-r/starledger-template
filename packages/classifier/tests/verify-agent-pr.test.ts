@@ -32,9 +32,9 @@ function validArtifactPair(): { annotations: string; meta: string } {
 }
 
 const PAIR = validArtifactPair();
-const readValid = (path: string): string =>
-  path === 'ai-annotations.json' ? PAIR.annotations : PAIR.meta;
-const readNever = (): string => {
+const readValid = (path: string): Buffer =>
+  Buffer.from(path === 'ai-annotations.json' ? PAIR.annotations : PAIR.meta, 'utf8');
+const readNever = (): Buffer => {
   throw new Error('readArtifact must not be called');
 };
 
@@ -103,7 +103,9 @@ describe('verifyAgentPullRequest — path-triggered, branch-identified', () => {
 
   it('rejects a touched artifact whose bytes fail the schema/hash check', () => {
     expect(() =>
-      verifyAgentPullRequest(context({ readArtifact: () => '{"not":"valid"}' })),
+      verifyAgentPullRequest(
+        context({ readArtifact: () => Buffer.from('{"not":"valid"}', 'utf8') }),
+      ),
     ).toThrow();
   });
 });

@@ -104,7 +104,8 @@ function main(): void {
     `[template] ${prefix}copied ${manifest.copied.length} file(s), ` +
       `transformed ${manifest.transformed.length} workflow(s), skipped ${manifest.skipped.length} excluded path(s) → ${outDir}`,
   );
-  for (const t of manifest.transformed) console.log(`  ~ ${t} (schedule → dispatch-only)`);
+  for (const t of manifest.transformed)
+    console.log(`  ~ ${t} (transformed: schedule → dispatch-only and/or omitted steps)`);
 
   if (hasFlag(args, 'verify')) {
     if (dryRun) {

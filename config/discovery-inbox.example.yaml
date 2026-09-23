@@ -1,0 +1,13 @@
+# Discovery Inbox — manual candidate sources (P5)
+#
+# Add GitHub repository URLs you want to review but haven't starred yet.
+# The discovery CLI will normalize URLs, resolve them via the GitHub API,
+# deduplicate against your stars.json, and produce candidate artifacts.
+#
+# Copy this file to config/discovery-inbox.yaml and add your candidates.
+manual: []
+# Examples:
+# - url: https://github.com/actualbudget/actual
+#   note: Personal finance app to review later
+# - url: https://github.com/linkwarden/linkwarden
+#   note: Bookmark manager candidate

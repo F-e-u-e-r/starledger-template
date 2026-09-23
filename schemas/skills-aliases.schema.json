@@ -1,0 +1,50 @@
+{
+  "$comment": "Structural projection generated from @starred/skills-schema (Zod, the single source of truth). Zod .refine/.superRefine constraints (scalar shape and character rules, normalization, I-1..I-6 and cross-field invariants) do not translate to JSON Schema, so passing this file does NOT establish contract validity (P7 section 4.0). Do not use as a complete validator.",
+  "$ref": "#/definitions/SkillsAliases",
+  "definitions": {
+    "SkillsAliases": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source_name_with_owner": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 140
+              },
+              "node_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400
+              }
+            },
+            "required": [
+              "source_name_with_owner",
+              "node_id",
+              "reason"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "aliases"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+}

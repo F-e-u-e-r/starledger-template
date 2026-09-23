@@ -15,11 +15,15 @@ these. Exit `0` ready · `20` incomplete / needs setup · `10` invalid / unsafe.
 
 ## The workflow cannot push generated data
 
-- **Symptom:** exporter runs but the `stars.json` commit/push fails (403).
-- **Cause:** Actions workflow permissions are read-only.
-- **Fix:** Settings → Actions → General → Workflow permissions → **Read and
-  write**. The push uses the built-in `GITHUB_TOKEN`, so `STAR_SYNC_TOKEN` itself
-  can stay read-only. See [`github-pages.md`](./github-pages.md).
+- **Symptom:** exporter runs but the `stars.json` commit/push fails (e.g. a
+  `GH013` rule-violation or other push rejection).
+- **Cause:** the dataset is published with a **dedicated GitHub App installation
+  token**, not `GITHUB_TOKEN`; the App is missing `Contents: write`, is not
+  installed on this repo, or is not a bypass actor on the `main` ruleset.
+- **Fix:** Confirm the App (`STARLEDGER_SYNC_APP_ID` /
+  `STARLEDGER_SYNC_APP_PRIVATE_KEY`) is installed on this repository with
+  `Contents: write` and listed as a ruleset bypass actor. `STAR_SYNC_TOKEN`
+  stays read-only and is not used for the push. See [`secrets.md`](./secrets.md).
 
 ## Pages is not deploying
 

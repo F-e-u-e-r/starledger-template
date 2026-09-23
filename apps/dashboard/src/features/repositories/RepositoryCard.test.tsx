@@ -7,10 +7,10 @@ import { makeRepo } from '../../test-utils';
 import { RepositoryCard } from './RepositoryCard';
 
 const NOW = new Date('2026-06-19T00:00:00Z');
-const card = (over: Partial<CanonicalRepo> = {}) =>
+const card = (over: Partial<CanonicalRepo> = {}, selectedTopics: readonly string[] = []) =>
   render(
     <ul>
-      <RepositoryCard repo={deriveRepo(makeRepo(over), NOW)} />
+      <RepositoryCard repo={deriveRepo(makeRepo(over), NOW)} selectedTopics={selectedTopics} />
     </ul>,
   );
 
@@ -73,6 +73,42 @@ describe('RepositoryCard', () => {
     fireEvent.click(screen.getByRole('button', { name: '+2' }));
     expect(screen.getByText('five')).toBeTruthy();
     expect(screen.getByText('six')).toBeTruthy();
+  });
+
+  it('TCOL-1: the topics affordance is a toggle — expanded lists collapse back (§13 M1.2e)', () => {
+    card({ topics: ['one', 'two', 'three', 'four', 'five', 'six'] });
+    fireEvent.click(screen.getByRole('button', { name: '+2' }));
+    const fewer = screen.getByRole('button', { name: 'Show fewer' });
+    expect(fewer.getAttribute('aria-expanded')).toBe('true');
+
+    fireEvent.click(fewer);
+    expect(screen.queryByText('five')).toBeNull(); // back to the deterministic collapsed default
+    const more = screen.getByRole('button', { name: '+2' });
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('TCOL-2: a selected topic beyond the collapsed threshold is never hidden', () => {
+    card({ topics: ['one', 'two', 'three', 'four', 'five', 'six'] }, ['six']);
+    // selected renders first; the unselected fill takes the remaining room
+    expect(screen.getByText('six')).toBeTruthy();
+    expect(screen.getByText('three')).toBeTruthy();
+    expect(screen.queryByText('four')).toBeNull(); // displaced by the selected topic
+    expect(screen.getByRole('button', { name: '+2' })).toBeTruthy();
+  });
+
+  it('TCOL-3: more selected topics than the threshold — every selected topic still renders', () => {
+    card({ topics: ['one', 'two', 'three', 'four', 'five', 'six'] }, [
+      'one',
+      'two',
+      'three',
+      'four',
+      'five',
+    ]);
+    for (const t of ['one', 'two', 'three', 'four', 'five']) {
+      expect(screen.getByText(t)).toBeTruthy();
+    }
+    expect(screen.queryByText('six')).toBeNull();
+    expect(screen.getByRole('button', { name: '+1' })).toBeTruthy();
   });
 
   it('moves an abbreviated star count into the card header while preserving the exact count label', () => {
