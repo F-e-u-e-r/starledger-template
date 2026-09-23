@@ -1,6 +1,6 @@
 name: Bug report
 description: Setup, workflow, or dashboard problem in a StarLedger instance.
-labels: ["bug"]
+labels: ['bug']
 body:
   - type: markdown
     attributes:
