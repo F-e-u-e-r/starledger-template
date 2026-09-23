@@ -18,13 +18,15 @@ const RATE_LIMIT = { cost: 1, remaining: 4999, resetAt: '2026-06-18T01:00:00Z' }
 export class FakeGit implements GitPublisher {
   readonly commits: string[][] = [];
   pushes = 0;
-  constructor(private readonly opts: { failPush?: boolean; failCommit?: boolean } = {}) {}
+  constructor(
+    private readonly opts: { failPush?: boolean; failCommit?: boolean; pushError?: string } = {},
+  ) {}
   async commit(files: readonly string[]): Promise<void> {
     if (this.opts.failCommit) throw new Error('simulated commit failure');
     this.commits.push([...files]);
   }
   async push(): Promise<void> {
-    if (this.opts.failPush) throw new Error('simulated push failure');
+    if (this.opts.failPush) throw new Error(this.opts.pushError ?? 'simulated push failure');
     this.pushes += 1;
   }
 }

@@ -1,0 +1,166 @@
+{
+  "$comment": "Structural projection generated from @starred/skills-schema (Zod, the single source of truth). Zod .refine/.superRefine constraints (scalar shape and character rules, normalization, I-1..I-6 and cross-field invariants) do not translate to JSON Schema, so passing this file does NOT establish contract validity (P7 section 4.0). Do not use as a complete validator.",
+  "$ref": "#/definitions/SkillsClassification",
+  "definitions": {
+    "SkillsClassification": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "taxonomy_version": {
+          "type": "string",
+          "const": "skills-1"
+        },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 400
+            }
+          },
+          "required": [
+            "id",
+            "label",
+            "description"
+          ],
+          "additionalProperties": false
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/SkillsClassification/properties/scope/properties/id"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "domain",
+                  "infrastructure"
+                ]
+              },
+              "definition": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600
+              },
+              "order": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "target_pack": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "opus-pack",
+                      "design-pack"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "label",
+              "kind",
+              "definition",
+              "order",
+              "target_pack"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source_name_with_owner": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 140
+              },
+              "node_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "resolution": {
+                "type": "string",
+                "enum": [
+                  "resolved",
+                  "missing_from_stars"
+                ]
+              },
+              "primary_category_id": {
+                "$ref": "#/definitions/SkillsClassification/properties/scope/properties/id"
+              },
+              "secondary_category_ids": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/SkillsClassification/properties/scope/properties/id"
+                },
+                "maxItems": 1
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400
+              }
+            },
+            "required": [
+              "source_name_with_owner",
+              "node_id",
+              "resolution",
+              "primary_category_id",
+              "secondary_category_ids",
+              "summary"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "taxonomy_version",
+        "scope",
+        "categories",
+        "entries"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+}

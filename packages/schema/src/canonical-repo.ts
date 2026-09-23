@@ -1,6 +1,29 @@
 import { z } from 'zod';
 
 /**
+ * A URL constrained to the `https:` scheme. Zod's `.url()` accepts ANY parseable
+ * URL — including `javascript:alert(1)` and `data:` — and these URLs flow
+ * straight into an `<a href>` in the dashboard, where React does not block a
+ * `javascript:` href at runtime (S1). Every URL this app stores is an https web
+ * address, so we pin the scheme rather than only checking syntax. `new URL`
+ * normalizes the protocol to lowercase, so a `HTTPS:`/`JavaScript:` disguise
+ * cannot slip through.
+ */
+export const HttpsUrlSchema = z
+  .string()
+  .url()
+  .refine(
+    (value) => {
+      try {
+        return new URL(value).protocol === 'https:';
+      } catch {
+        return false;
+      }
+    },
+    { message: 'must be an https URL' },
+  );
+
+/**
  * A release reference as GitHub's "Latest" release (Repository.latestRelease).
  * NOTE (ADR): the latest-stable selection is delegated to GitHub; this app does
  * NOT reproduce GitHub's non-draft/non-prerelease selection algorithm.
@@ -9,7 +32,7 @@ export const StableReleaseSchema = z
   .object({
     tag_name: z.string().min(1),
     published_at: z.string().nullable(),
-    url: z.string().url(),
+    url: HttpsUrlSchema,
   })
   .strict();
 
@@ -59,7 +82,7 @@ const CanonicalRepoBase = z
     name_with_owner: z.string().min(1),
     owner: z.string().min(1),
     name: z.string().min(1),
-    url: z.string().url(),
+    url: HttpsUrlSchema,
 
     // --- hydrated metadata (nullable = confirmed-absent unless listed in unavailable_fields) ---
     description: z.string().nullable(),

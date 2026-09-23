@@ -1,6 +1,7 @@
 import type { CanonicalRepo } from '@starred/schema';
 import { type DerivedRepo, deriveRepo } from '../../data/derive-fields';
 import type { RepoAnnotation } from '../../data/load-annotations';
+import type { RepoSkillsClassification } from '../../data/load-skills-classification';
 import type { DashboardState } from '../../state/dashboard-state';
 import { applyFilters, type FilterState } from '../filters/filters';
 import { buildSearchText, matchesSearchText } from '../search/search';
@@ -19,17 +20,31 @@ export interface SearchableRepo extends DerivedRepo {
 
 /**
  * Per-dataset preparation (the expensive, clock-dependent half): derive fields
- * and precompute searchable text ONCE. Memoize by [repos, now]; everything after
- * this is independent of the dataset metadata and the clock.
+ * and precompute searchable text ONCE per input set. Memoize by
+ * [repos, now, annotations, skills, skillCategoryLabels] — the pass re-runs
+ * when an optional layer settles (annotations and, since M2.4, skills),
+ * mirroring the AI layer's existing behavior; everything after this is
+ * independent of the dataset metadata and the clock.
  */
 export function prepareRepositories(
   repos: readonly CanonicalRepo[],
   now: Date,
   annotations?: ReadonlyMap<string, RepoAnnotation>,
+  skills?: ReadonlyMap<string, RepoSkillsClassification>,
+  skillCategoryLabels?: ReadonlyMap<string, string>,
 ): SearchableRepo[] {
   return repos.map((repo) => {
-    const derived = deriveRepo(repo, now, annotations?.get(repo.node_id) ?? null);
-    return { ...derived, searchText: buildSearchText(derived) };
+    const derived = deriveRepo(
+      repo,
+      now,
+      annotations?.get(repo.node_id) ?? null,
+      skills?.get(repo.node_id) ?? null,
+    );
+    // Search enrichment (P7 §4.12/§7): `searchText` gains the classification
+    // taxonomy labels + curated summary through `derived.skills`, which is
+    // non-null only when the caller passed a coherent-ready join map — the
+    // readiness gate lives at the caller (RepositoryView), never here.
+    return { ...derived, searchText: buildSearchText(derived, skillCategoryLabels) };
   });
 }
 
@@ -56,8 +71,26 @@ export function selectRepositories(
   return selectFromPrepared(prepareRepositories(repos, now), view);
 }
 
-/** Map the canonical DashboardState onto the pipeline's ViewState. */
-export function dashboardToView(s: DashboardState): ViewState {
+/**
+ * Map the canonical DashboardState onto the pipeline's ViewState.
+ *
+ * `aiReady` gates the AI-derived facets (P7 §2.2): when the optional AI layer is
+ * not `ready`, `categories`/`aiTags` are neutralized here so an unavailable layer
+ * can never suppress base repos (the shipped fail-soft bug — a bookmarked
+ * `?category=…` with no annotations would otherwise match nothing and blank the
+ * dashboard). The URL value is untouched (it lives in `DashboardState`), so it is
+ * retained for recoverability and re-applies once the layer loads. Defaults to
+ * `true` so non-AI callers (tests, `selectRepositories`) are unaffected.
+ *
+ * `skillsReady` gates the skills-classification facets the same way (P7 §4.11,
+ * M24-FS-1): when the layer is not `ready`, `scope`/`skillCategories` are
+ * neutralized here — requested values stay in the URL, results are never zeroed
+ * by the optional layer's absence. Unlike `aiReady`, it defaults to `false`
+ * (fail-closed): the skills surface is new with no legacy callers to preserve,
+ * so activation always requires an explicit `true` from a status-owning caller
+ * (charter #2; pre-commit R1 F-A, pinned by M24-STS-3).
+ */
+export function dashboardToView(s: DashboardState, aiReady = true, skillsReady = false): ViewState {
   return {
     query: s.query,
     sort: { field: s.sort, direction: s.direction },
@@ -65,8 +98,10 @@ export function dashboardToView(s: DashboardState): ViewState {
       languages: s.languages,
       topics: s.topics,
       licenses: s.licenses,
-      categories: s.categories,
-      aiTags: s.aiTags,
+      categories: aiReady ? s.categories : [],
+      aiTags: aiReady ? s.aiTags : [],
+      skillsScope: skillsReady && s.scope === 'skills',
+      skillCategories: skillsReady ? s.skillCategories : [],
       archived: s.archived,
       fork: s.fork,
       stale: s.stale,

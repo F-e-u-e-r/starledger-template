@@ -53,6 +53,8 @@ export const EXCLUDE_BASENAMES = new Set([
   'ai-run-meta.json',
   'notifier-state.json',
   'classifier-state.json',
+  'discovery-candidates.json',
+  'discovery-candidates-meta.json',
   '.DS_Store',
   'config.yaml',
   'ai.yaml',
@@ -64,6 +66,20 @@ export const NEUTRALIZE_SCHEDULE_WORKFLOWS = new Set([
   'sync-stars.yml',
   'notify.yml',
   'ai-state.yml',
+]);
+
+/**
+ * Workflows that exist for the parent repository only and must never ship in the
+ * template: the template self-test (it needs README.template.md) and the parent's
+ * operational jobs that run scripts under `scripts/`, a directory this allowlist
+ * deliberately excludes. Shipping them would hand every template user a workflow
+ * that can only fail.
+ */
+export const EXCLUDE_WORKFLOWS = new Set([
+  'template-smoke.yml',
+  'ai-stall-watch.yml',
+  'p3-completion-check.yml',
+  'public-pat-smoke.yml',
 ]);
 
 /** The personal README is replaced by this file, renamed to README.md. */

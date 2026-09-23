@@ -4,7 +4,13 @@ import { AiAnnotationsMetaSchema, type AiAnnotationsMeta } from './meta';
 import { TAXONOMY_VERSION } from './taxonomy';
 
 export interface BuildAiAnnotationsMetaInput {
-  /** The EXACT serialized `ai-annotations.json` bytes (from `serializeAnnotations`). */
+  /**
+   * The EXACT serialized `ai-annotations.json` string (from
+   * `serializeAnnotations`), which the caller writes verbatim as UTF-8 — so the
+   * recorded digest equals the byte digest of the file that lands. This is the
+   * GENERATION-side digest of freshly canonicalized content; verifying an
+   * EXISTING artifact hashes exact bytes instead (`verifyAiArtifacts`).
+   */
   annotationsBytes: string;
   annotationCount: number;
   /** SHA-256 of the canonical `stars.json` the annotations were computed against. */

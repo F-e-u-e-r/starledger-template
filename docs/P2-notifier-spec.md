@@ -289,6 +289,6 @@ P2 is marked **complete** only after steps 1–4 pass on hosted Actions.
   (`retryable`/`permanent`/`fatal`) so `permanent_failure` is reachable and a bad
   destination is a loud exit 10; GitHub-`401` → fatal; `attention` telemetry for
   stuck items; inert LLM wiring removed (`summary.use_llm` reserved, no
-  `LLM_API_KEY`); CI runs the secret-free state/replay smokes. **Live controlled
-  delivery + no-duplicate replay on hosted Actions remains the final validation
-  before P2 is marked complete.**
+  `LLM_API_KEY`); CI runs the secret-free state/replay smokes. **Hosted validation
+  complete (2026-06-24): a controlled fixture source proved cold-start baseline
+  (no send), single delivery, and no-duplicate replay on hosted Actions.**

@@ -66,9 +66,12 @@ describe('run — validated git publication', () => {
     expect(git.commits).toHaveLength(1);
   });
 
-  it('PUB-7: a push failure defers (exit 20), records push_succeeded=false, remote unchanged', async () => {
+  it('PUB-7: a push failure defers (exit 20), surfaces git detail, remote unchanged', async () => {
     const dir = tmp();
-    const git = new FakeGit({ failPush: true });
+    const git = new FakeGit({
+      failPush: true,
+      pushError: 'git push origin HEAD:refs/heads/main failed: fatal: detached HEAD',
+    });
     await expect(
       run({
         outDir: dir,
@@ -81,7 +84,12 @@ describe('run — validated git publication', () => {
         coordinator: makeTestCoordinator(),
         now: NOW,
       }),
-    ).rejects.toBeInstanceOf(PushFailedError);
+    ).rejects.toMatchObject({
+      // exit 20 (deferred); message carries the underlying git failure detail.
+      constructor: PushFailedError,
+      exitCode: 20,
+      message: expect.stringContaining('detached HEAD'),
+    });
     const meta = JSON.parse(readFileSync(join(dir, 'run-meta.json'), 'utf8'));
     expect(meta.push_succeeded).toBe(false);
     expect(meta.published).toBe(false);

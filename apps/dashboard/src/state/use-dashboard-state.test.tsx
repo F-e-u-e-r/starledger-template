@@ -63,3 +63,76 @@ describe('useDashboardState', () => {
     expect(screen.getByTestId('langs').textContent).toBe('');
   });
 });
+
+function ResetHarness() {
+  const { state, update, reset } = useDashboardState();
+  return (
+    <div>
+      <span data-testid="page">{state.page}</span>
+      <span data-testid="density">{state.density}</span>
+      <span data-testid="view">{state.view}</span>
+      <button onClick={() => update({ page: 3 })}>goPage3</button>
+      <button onClick={() => update({ query: 'x' })}>changeQuery</button>
+      <button onClick={() => update({ sort: state.sort })}>sortNoop</button>
+      <button onClick={() => update({ density: 'comfortable' })}>changeDensity</button>
+      <button onClick={() => update({ view: 'discovery' })}>toDiscovery</button>
+      <button onClick={() => update({ languages: ['Go'] })}>addGo</button>
+      <button onClick={() => update({ languages: ['Go'], page: 5 })}>filterAndPage</button>
+      <button onClick={() => reset()}>clearAll</button>
+    </div>
+  );
+}
+
+describe('useDashboardState — page reset semantics (§6.3)', () => {
+  const page = () => screen.getByTestId('page').textContent;
+
+  it('resets page → 1 on a semantic change to a filter field', () => {
+    render(<ResetHarness />);
+    fireEvent.click(screen.getByText('goPage3'));
+    expect(page()).toBe('3');
+    fireEvent.click(screen.getByText('addGo'));
+    expect(page()).toBe('1');
+    expect(window.location.search).toBe('?language=Go'); // page dropped
+  });
+
+  it('resets page → 1 when the query changes', () => {
+    render(<ResetHarness />);
+    fireEvent.click(screen.getByText('goPage3'));
+    fireEvent.click(screen.getByText('changeQuery'));
+    expect(page()).toBe('1');
+  });
+
+  it('does NOT reset page on a no-op update (same value) — key presence alone must not reset', () => {
+    render(<ResetHarness />);
+    fireEvent.click(screen.getByText('goPage3'));
+    fireEvent.click(screen.getByText('sortNoop'));
+    expect(page()).toBe('3');
+  });
+
+  it('does NOT reset page when density changes', () => {
+    render(<ResetHarness />);
+    fireEvent.click(screen.getByText('goPage3'));
+    fireEvent.click(screen.getByText('changeDensity'));
+    expect(page()).toBe('3');
+    expect(screen.getByTestId('density').textContent).toBe('comfortable');
+  });
+
+  it('an explicit page in the same update wins over the implicit reset', () => {
+    render(<ResetHarness />);
+    fireEvent.click(screen.getByText('filterAndPage'));
+    expect(page()).toBe('5'); // not reset to 1
+    expect(window.location.search).toBe('?language=Go&page=5');
+  });
+
+  it('reset (clear-all) clears filters/search/sort + page but PRESERVES view and density', () => {
+    render(<ResetHarness />);
+    fireEvent.click(screen.getByText('toDiscovery')); // view = discovery
+    fireEvent.click(screen.getByText('changeDensity')); // density = comfortable
+    fireEvent.click(screen.getByText('addGo')); // a filter
+    fireEvent.click(screen.getByText('clearAll')); // reset()
+    expect(screen.getByTestId('view').textContent).toBe('discovery'); // preserved
+    expect(screen.getByTestId('density').textContent).toBe('comfortable'); // preserved
+    // filters/search/sort cleared; only the preserved display/nav fields remain
+    expect(window.location.search).toBe('?view=discovery&density=comfortable');
+  });
+});

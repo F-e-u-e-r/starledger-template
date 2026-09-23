@@ -32,6 +32,11 @@ program
         `✓ discovered ${outcome.discovered}, enqueued ${outcome.enqueued}, ` +
           `pending ${outcome.pendingCount}, permanent ${outcome.permanentFailures.length} — ${save}\n`,
       );
+      if (outcome.save.pushError) {
+        process.stderr.write(
+          `  ✗ state push failed: ${redactSecrets(outcome.save.pushError, secrets())}\n`,
+        );
+      }
       for (const e of outcome.errors) {
         process.stderr.write(
           `  ! ${e.source} ${e.target}: ${redactSecrets(e.message, secrets())}\n`,

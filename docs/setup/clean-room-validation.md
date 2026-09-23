@@ -6,6 +6,15 @@ A clean-room test proves a brand-new repo can deploy StarLedger from zero using
 this once before publishing the template and after any change to the builder
 allowlist.
 
+> **Status — hosted validation complete (2026-06-24).** A temporary smoke repo
+> created from `starledger-template` ran `setup:doctor`, synced 501 stars,
+> produced `stars.json` + `dataset-meta.json`, deployed GitHub Pages, and
+> verified dashboard search/filter. AI artifacts were absent and `notify` /
+> `ai-state` did not auto-run, as expected. Release `v1.2.0-alpha.1` was tagged.
+> The smoke repo (`F-e-u-e-r/starledger-template-smoke`) has since been made
+> **private** to avoid exposing personal starred-repository data, so its URL is
+> not a permanent public artifact. The steps below remain the repeatable runbook.
+
 ## A. Generate + self-check the template (local)
 
 ```bash

@@ -1,5 +1,9 @@
 import type { CanonicalRepo, StarsFile } from '@starred/schema';
 import type { LoadedAnnotations, RepoAnnotation } from './data/load-annotations';
+import type {
+  LoadedSkillsClassification,
+  RepoSkillsClassification,
+} from './data/load-skills-classification';
 import type { LoadedDataset } from './data/load-stars';
 
 export function makeRepo(overrides: Partial<CanonicalRepo> = {}): CanonicalRepo {
@@ -52,6 +56,67 @@ export function makeAnnotations(entries: Record<string, RepoAnnotation>): Loaded
     byNodeId: new Map(Object.entries(entries)),
     taxonomyVersion: '1',
     generatedAt: '2026-06-20T00:00:00Z',
+  };
+}
+
+export function makeSkillsRecord(
+  overrides: Partial<RepoSkillsClassification> = {},
+): RepoSkillsClassification {
+  return {
+    primaryCategoryId: 'verification-qa',
+    secondaryCategoryIds: [],
+    summary: 'Curated one-liner.',
+    ...overrides,
+  };
+}
+
+/**
+ * A ready skills-classification fixture (P7 §4.11). The default
+ * `generatedAgainstStarsSha256` equals `makeDataset`'s `stars_sha256`, so the
+ * §2.1 provenance note stays OFF unless a test opts into the mismatch.
+ */
+export function makeSkillsClassification(
+  entries: Record<string, RepoSkillsClassification>,
+  overrides: Partial<Omit<LoadedSkillsClassification, 'byNodeId'>> = {},
+): LoadedSkillsClassification {
+  return {
+    byNodeId: new Map(Object.entries(entries)),
+    categories: [
+      {
+        id: 'verification-qa',
+        label: 'Verification & QA',
+        kind: 'domain',
+        definition: 'Testing, review, and QA skills.',
+        order: 0,
+        target_pack: 'opus-pack',
+      },
+      {
+        id: 'design-ui',
+        label: 'Design & UI',
+        kind: 'domain',
+        definition: 'Design and UI skills.',
+        order: 1,
+        target_pack: 'design-pack',
+      },
+      {
+        id: 'infra-runtime',
+        label: 'Infra & Runtime',
+        kind: 'infrastructure',
+        definition: 'Infrastructure repos.',
+        order: 2,
+        target_pack: null,
+      },
+    ],
+    scope: {
+      id: 'coding-agent-skills-ecosystem',
+      label: 'Coding-agent skills ecosystem',
+      description: 'A curated subset; absence is not a classification.',
+    },
+    taxonomyVersion: 'skills-1',
+    generatedAt: '2026-08-14T00:00:00Z',
+    generatedAgainstStarsSha256: '0'.repeat(64),
+    coverage: { matched: 2, unclassified: 1, unresolved: 0 },
+    ...overrides,
   };
 }
 

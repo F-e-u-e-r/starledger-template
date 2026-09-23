@@ -1,4 +1,4 @@
-import { sha256 } from '@starred/ai-schema';
+import { sha256Bytes } from '@starred/ai-schema';
 import {
   DatasetMetaSchema,
   StarsFileSchema,
@@ -24,17 +24,22 @@ export interface VerifiedDataset {
 
 /**
  * Load and verify the canonical dataset EXACTLY as the dashboard loader and the
- * exporter publish step do: both files schema-validate, the stars bytes hash to
+ * exporter publish step do: both files schema-validate, the stars BYTES hash to
  * `dataset-meta.stars_sha256`, `repo_count` matches, and node_ids are unique.
  * The planner classifies only repositories that pass this gate, so a malformed
  * or incomplete canonical identity can never enter a job (DATA-1/DATA-2).
  *
- * Mirrors `@starred/deploy`'s `verifyDatasetIntegrity`. The security-critical
- * value — the SHA-256 of the exact stars bytes — is computed the same way, so
- * the exporter, the dashboard, and the classifier agree on `dataset_sha256` by
- * construction (the P3.3 provenance gate relies on that agreement).
+ * `starsBytes` is BYTES, not text, and the parameter type says so deliberately
+ * (round-9 closure of the decoded-text digest class; mirrors `@starred/deploy`'s
+ * `verifyDatasetIntegrity`). Hashing a decoded string re-encodes it, so two
+ * byte strings that decode alike (a BOM, a malformed sequence) hash alike — the
+ * classifier would then produce content against a dataset the byte-strict
+ * deployed runtime refuses to load. Requiring bytes keeps the exporter, the
+ * build, the dashboard, and the classifier agreeing on `dataset_sha256` (the
+ * P3.3 provenance gate relies on that agreement).
  */
-export function loadCanonicalDataset(starsText: string, metaText: string): VerifiedDataset {
+export function loadCanonicalDataset(starsBytes: Uint8Array, metaText: string): VerifiedDataset {
+  const starsText = Buffer.from(starsBytes).toString('utf8');
   let starsJson: unknown;
   let metaJson: unknown;
   try {
@@ -59,7 +64,7 @@ export function loadCanonicalDataset(starsText: string, metaText: string): Verif
     seen.add(repo.node_id);
   }
 
-  const datasetSha256 = sha256(starsText);
+  const datasetSha256 = sha256Bytes(starsBytes);
   if (meta.data.stars_sha256 !== datasetSha256) {
     throw new DatasetError('dataset-meta.stars_sha256 does not match stars.json bytes');
   }

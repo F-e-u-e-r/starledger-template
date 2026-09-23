@@ -64,7 +64,19 @@ function CheckboxFacet<T extends string>({
           {help}
         </p>
       ) : null}
-      <div className="facet-options">
+      {/* Any list longer than the collapsed budget gets the bounded-scroll
+          treatment (M1.2d) — keyed on rendered LENGTH, not on `showAll`: a
+          collapsed facet can also exceed the budget via selected-overflow rows
+          (URL-preselected values, selections made in the drawer instance, or a
+          section collapse/reopen resetting `showAll`), and those must be
+          bounded too (R1 xcheck finding). The collapsed default never scrolls. */}
+      <div
+        className={
+          initialLimit && visible.length > initialLimit
+            ? 'facet-options facet-options--scroll'
+            : 'facet-options'
+        }
+      >
         {visible.map((opt) => (
           <label key={opt.value} className="facet-option">
             <input
@@ -240,11 +252,27 @@ export function FilterControls({
   facets,
   update,
   hasDegraded,
+  skills,
 }: {
   state: DashboardState;
   facets: FacetOptions;
   update: (partial: Partial<DashboardState>, mode?: HistoryMode) => void;
   hasDegraded: boolean;
+  /**
+   * Skills-classification facet data (P7 §4.11/§4.12) — passed ONLY while the
+   * layer is `ready` (the M0 AI-facet precedent: the section is hidden while
+   * degraded; requested values stay removable via chips). `categories` is the
+   * FULL taxonomy in canonical order (§4.2 I-5), never data-mined from repos;
+   * `generatedAgainstOlderSnapshot` drives the §2.1 soft provenance note;
+   * `coverage` is the loader's generation-time statistics for the §4.12
+   * three-number line — presentation only, never a readiness or filter input
+   * (the F2 re-entry pin: `matched === 0` changes wording, nothing else).
+   */
+  skills?: {
+    categories: readonly { id: string; label: string }[];
+    generatedAgainstOlderSnapshot: boolean;
+    coverage: { matched: number; unclassified: number; unresolved: number };
+  } | null;
 }) {
   const repoTypeSelected =
     (state.archived !== null ? 1 : 0) +
@@ -295,6 +323,62 @@ export function FilterControls({
           hideLegend
         />
       </FilterSection>
+      {skills ? (
+        <FilterSection
+          title="Skills ecosystem"
+          count={skills.categories.length}
+          selectedCount={(state.scope === 'skills' ? 1 : 0) + state.skillCategories.length}
+          defaultOpen
+        >
+          <fieldset className="facet">
+            <legend className="visually-hidden">Scope</legend>
+            <div className="facet-options">
+              <label className="facet-option">
+                <input
+                  type="checkbox"
+                  checked={state.scope === 'skills'}
+                  onChange={(e) => update({ scope: e.target.checked ? 'skills' : 'all' })}
+                />
+                Skills-ecosystem repos only
+              </label>
+            </div>
+            {skills.generatedAgainstOlderSnapshot ? (
+              <p className="facet-help">
+                Classification was generated against an older snapshot of the starred dataset.
+              </p>
+            ) : null}
+          </fieldset>
+          {/* §4.12 coverage line: the three §5 numbers, separately labeled,
+              straight from the loader's generation-time statistics — never
+              summed, never live-recomputed (§4.4), never a readiness signal. */}
+          <p className="facet-help skills-coverage">
+            {`Coverage at generation: ${skills.coverage.matched} matched · ${skills.coverage.unclassified} unclassified · ${skills.coverage.unresolved} unresolved source entries`}
+          </p>
+          {skills.coverage.matched === 0 ? (
+            <p className="facet-help skills-coverage-zero">
+              The classification matched none of the starred repositories at generation time — scope
+              and category filters stay available.
+            </p>
+          ) : null}
+          <p className="facet-help">
+            <a
+              className="skills-download"
+              href={`${import.meta.env.BASE_URL}skills-classified.md`}
+              download
+            >
+              Download the classification source (.md)
+            </a>
+          </p>
+          <CheckboxFacet
+            legend="Skill category"
+            options={skills.categories.map((c) => ({ value: c.id, label: c.label }))}
+            selected={state.skillCategories}
+            onChange={(skillCategories) => update({ skillCategories })}
+            initialLimit={10}
+            help="Curated classification of the coding-agent skills-ecosystem subset. Matches a repo's primary or secondary category."
+          />
+        </FilterSection>
+      ) : null}
       {facets.categories.length > 0 ? (
         <FilterSection
           title="AI category"

@@ -4,12 +4,13 @@ import { dirname, join, relative, sep } from 'node:path';
 import {
   ALLOW_DIRS,
   ALLOW_FILES,
+  EXCLUDE_WORKFLOWS,
   NEUTRALIZE_SCHEDULE_WORKFLOWS,
   README_OUTPUT,
   README_TEMPLATE,
   isExcluded,
 } from './allowlist';
-import { neutralizeSchedule } from './workflows';
+import { neutralizeSchedule, stripOmittedSteps } from './workflows';
 
 export interface BuildOptions {
   srcRoot: string;
@@ -74,8 +75,23 @@ export function buildTemplate(options: BuildOptions): BuildManifest {
       const parts = rel.split(sep);
       const base = parts[parts.length - 1] ?? '';
       const inWorkflows = parts.includes('.github') && parts.includes('workflows');
-      if (inWorkflows && NEUTRALIZE_SCHEDULE_WORKFLOWS.has(base)) {
-        const { text, changed } = neutralizeSchedule(readFileSync(abs, 'utf8'));
+      if (inWorkflows && EXCLUDE_WORKFLOWS.has(base)) {
+        // Parent-only workflow: never emitted (see allowlist.ts).
+        manifest.skipped.push(rel);
+        continue;
+      }
+      if (inWorkflows) {
+        let text = readFileSync(abs, 'utf8');
+        let changed = false;
+        if (NEUTRALIZE_SCHEDULE_WORKFLOWS.has(base)) {
+          const neutralized = neutralizeSchedule(text);
+          text = neutralized.text;
+          changed = changed || neutralized.changed;
+        }
+        // Fail-closed: a malformed marker throws here, even on --dry-run.
+        const stripped = stripOmittedSteps(text);
+        text = stripped.text;
+        changed = changed || stripped.changed;
         writeText(rel, text);
         (changed ? manifest.transformed : manifest.copied).push(rel);
       } else {

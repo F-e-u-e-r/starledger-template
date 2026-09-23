@@ -26,10 +26,13 @@ Repository permissions:
                                          stars.json with this token
 ```
 
-In the shipped `sync-stars.yml` the commit is pushed with the workflow's built-in
-`GITHUB_TOKEN`, **not** `STAR_SYNC_TOKEN` — so `STAR_SYNC_TOKEN` can stay
-**read-only** (no `Contents: write`). Grant `Contents: write` to the PAT only if
-you change the workflow to push with it.
+The shipped `sync-stars.yml` reads GitHub stars with `STAR_SYNC_TOKEN`, but
+publishes `stars.json` and `dataset-meta.json` using a **dedicated GitHub App
+installation token**. The App is installed only on this repository and is the
+ruleset bypass actor for dataset publication, so the commit lands on protected
+`main` without an admin PAT or a broad `github-actions[bot]` bypass.
+`STAR_SYNC_TOKEN` stays **read-only** (no `Contents: write`) and is never used
+for git push.
 
 > `STAR_SYNC_TOKEN` is **not** an AI model key and **not** a shared StarLedger
 > service key. It only reads your stars.

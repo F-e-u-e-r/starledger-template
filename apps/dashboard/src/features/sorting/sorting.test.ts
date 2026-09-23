@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeRepo } from '../../test-utils';
-import { sortRepos } from './sorting';
+import { defaultDirection, SORT_FIELDS, sortRepos } from './sorting';
 
 describe('sortRepos (SORT-1 / SORT-2 / SORT-3)', () => {
   it('SORT-1: asc/desc with a deterministic node_id tiebreak', () => {
@@ -51,5 +51,15 @@ describe('sortRepos (SORT-1 / SORT-2 / SORT-3)', () => {
     expect(input).toEqual(snapshot); // input order is untouched...
     expect(input[0]).toBe(a); // ...and the original element references did not move
     expect(input[1]).toBe(b);
+  });
+});
+
+describe('defaultDirection (M0-SORT-1)', () => {
+  it('names default ascending; dates and counts default descending', () => {
+    expect(defaultDirection('name_with_owner')).toBe('asc');
+    for (const field of SORT_FIELDS) {
+      if (field === 'name_with_owner') continue;
+      expect(defaultDirection(field)).toBe('desc');
+    }
   });
 });

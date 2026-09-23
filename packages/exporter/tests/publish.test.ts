@@ -113,4 +113,25 @@ describe('publishDataset (PUB-3..8 / HASH-1)', () => {
     expect(result.pushSucceeded).toBe(false);
     expect(git.pushes).toBe(0);
   });
+
+  it('PUB-7: a push failure carries diagnostic detail (not swallowed)', async () => {
+    const dir = tmp();
+    const git = new FakeGit({
+      failPush: true,
+      pushError: 'git push failed: fatal: You are not currently on a branch',
+    });
+    const result = await publishDataset({ ...publishInput(dir), git });
+    expect(result.failure?.stage).toBe('push');
+    expect(result.failure?.message).toContain('not currently on a branch');
+  });
+
+  it('PUB-6: a commit failure carries diagnostic detail', async () => {
+    const dir = tmp();
+    const result = await publishDataset({
+      ...publishInput(dir),
+      git: new FakeGit({ failCommit: true }),
+    });
+    expect(result.failure?.stage).toBe('commit');
+    expect(result.failure?.message).toContain('simulated commit failure');
+  });
 });

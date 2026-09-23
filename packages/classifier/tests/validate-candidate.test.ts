@@ -101,12 +101,14 @@ describe('candidate validation', () => {
     const firstBytes = assembleAiArtifacts({
       currentAnnotations: [],
       validatedCandidates: [first],
+      canonicalNodeIds: new Set([job.node_id]),
       datasetSha256: 'e'.repeat(64),
       generatedAt: '2026-06-20T00:00:00Z',
     }).annotationsBytes;
     const secondBytes = assembleAiArtifacts({
       currentAnnotations: [],
       validatedCandidates: [second],
+      canonicalNodeIds: new Set([job.node_id]),
       datasetSha256: 'e'.repeat(64),
       generatedAt: '2026-06-20T00:00:00Z',
     }).annotationsBytes;
@@ -120,12 +122,14 @@ describe('candidate validation', () => {
     const first = assembleAiArtifacts({
       currentAnnotations: [],
       validatedCandidates: [validateCandidate(makeCandidate(job, { summary: decomposed }), job)],
+      canonicalNodeIds: new Set([job.node_id]),
       datasetSha256: 'e'.repeat(64),
       generatedAt: '2026-06-20T00:00:00Z',
     }).annotationsBytes;
     const second = assembleAiArtifacts({
       currentAnnotations: [],
       validatedCandidates: [validateCandidate(makeCandidate(job, { summary: composed }), job)],
+      canonicalNodeIds: new Set([job.node_id]),
       datasetSha256: 'e'.repeat(64),
       generatedAt: '2026-06-20T00:00:00Z',
     }).annotationsBytes;

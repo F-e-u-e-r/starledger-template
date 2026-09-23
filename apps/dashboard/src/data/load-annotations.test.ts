@@ -50,17 +50,19 @@ function fetchOf(
 ): typeof fetch {
   return ((input: RequestInfo | URL) => {
     if (String(input).includes('ai-annotations-meta.json')) {
-      return Promise.resolve({
-        ok: meta.ok,
-        status: meta.ok ? 200 : 404,
-        json: () => Promise.resolve(meta.body),
-      } as unknown as Response);
+      // A REAL Response for meta too: the loader now reads meta as BYTES so a
+      // BOM cannot be silently swallowed, and a double exposing only `json()`
+      // cannot express that.
+      return Promise.resolve(
+        new Response(meta.body === undefined ? '' : JSON.stringify(meta.body), {
+          status: meta.ok ? 200 : 404,
+        }),
+      );
     }
-    return Promise.resolve({
-      ok: ann.ok,
-      status: ann.ok ? 200 : 404,
-      text: () => Promise.resolve(ann.text ?? ''),
-    } as unknown as Response);
+    // A REAL Response for the artifact body: integrity is a byte contract, and
+    // a double exposing only `text()` cannot express the bytes-vs-decoded-text
+    // distinction the loader now enforces (review finding F6).
+    return Promise.resolve(new Response(ann.text ?? '', { status: ann.ok ? 200 : 404 }));
   }) as typeof fetch;
 }
 
@@ -72,12 +74,12 @@ async function sha256(text: string): Promise<string> {
 
 describe('loadAnnotations (fail-soft AI loading)', () => {
   it('LOAD-1: a valid AI artifact loads and is keyed by node_id', async () => {
+    const text = JSON.stringify(annotationsDoc());
     const result = await loadAnnotations({
       fetchImpl: fetchOf(
-        { ok: true, body: metaDoc() },
-        { ok: true, text: JSON.stringify(annotationsDoc()) },
+        { ok: true, body: metaDoc({ annotations_sha256: await sha256(text) }) },
+        { ok: true, text },
       ),
-      verifyBytes: false,
     });
     expect(result?.byNodeId.get('R_1')?.category).toBe('developer-tools');
     expect(result?.byNodeId.get('R_1')?.tags).toEqual(['automation', 'cli']);
@@ -99,24 +101,30 @@ describe('loadAnnotations (fail-soft AI loading)', () => {
     expect(await loadAnnotations({ fetchImpl: fetchOf({ ok: false }, { ok: false }) })).toBeNull();
   });
 
+  // These two rejections must be reached for their OWN reason. Integrity now
+  // runs first, so each fixture carries a CORRECT digest — otherwise the loader
+  // would reject on integrity and the assertion would pass vacuously.
   it('LOAD-3: an unsupported taxonomy version is fail-soft → null', async () => {
+    const text = JSON.stringify(annotationsDoc({ taxonomy_version: '2' }));
     const result = await loadAnnotations({
       fetchImpl: fetchOf(
-        { ok: true, body: metaDoc({ taxonomy_version: '2' }) },
-        { ok: true, text: JSON.stringify(annotationsDoc({ taxonomy_version: '2' })) },
+        {
+          ok: true,
+          body: metaDoc({ taxonomy_version: '2', annotations_sha256: await sha256(text) }),
+        },
+        { ok: true, text },
       ),
-      verifyBytes: false,
     });
     expect(result).toBeNull();
   });
 
   it('LOAD-3: a malformed annotation is fail-soft → null', async () => {
+    const text = JSON.stringify(annotationsDoc({ annotations: [{ node_id: 'R_1' }] }));
     const result = await loadAnnotations({
       fetchImpl: fetchOf(
-        { ok: true, body: metaDoc() },
-        { ok: true, text: JSON.stringify(annotationsDoc({ annotations: [{ node_id: 'R_1' }] })) },
+        { ok: true, body: metaDoc({ annotations_sha256: await sha256(text) }) },
+        { ok: true, text },
       ),
-      verifyBytes: false,
     });
     expect(result).toBeNull();
   });
@@ -255,12 +263,13 @@ describe('loadAnnotations enforces the meta contract (fail-soft)', () => {
   it.each(metaCases)(
     'rejects an invalid ai-annotations-meta.json (%s) → null',
     async (_label, meta) => {
+      // No digest needed: an invalid meta is rejected by schema validation
+      // before the artifact is ever fetched, so integrity is never reached.
       const result = await loadAnnotations({
         fetchImpl: fetchOf(
           { ok: true, body: meta },
           { ok: true, text: JSON.stringify(annotationsDoc()) },
         ),
-        verifyBytes: false,
       });
       expect(result).toBeNull();
     },

@@ -72,7 +72,23 @@ function ReleaseValue({
  * field listed as unavailable renders as "Information unavailable" — the two are
  * never conflated (DATA-4 / CARD-1).
  */
-export function RepositoryCard({ repo, now = new Date() }: { repo: DerivedRepo; now?: Date }) {
+export function RepositoryCard({
+  repo,
+  now = new Date(),
+  selectedTopics = [],
+  skillCategoryLabels,
+}: {
+  repo: DerivedRepo;
+  now?: Date;
+  /** Topic filters currently active (§13 M1.2e): these are never hidden behind
+   *  the collapsed topics state. Presentation input only — the card never
+   *  writes canonical state. */
+  selectedTopics?: readonly string[];
+  /** Taxonomy labels by category id (P7 §4.11 badges). Absent while the skills
+   *  layer is not ready — `repo.skills` is then also absent, so no badge can
+   *  render with a missing label; the id slug is the defensive fallback only. */
+  skillCategoryLabels?: ReadonlyMap<string, string>;
+}) {
   const [topicsExpanded, setTopicsExpanded] = useState(false);
   const starred = fmtMonthYear(repo.starred_at);
   const pushed = unavailable(repo, 'pushed_at')
@@ -94,7 +110,18 @@ export function RepositoryCard({ repo, now = new Date() }: { repo: DerivedRepo; 
   const latestDate = fmtDate(repo.latest_any_release?.published_at ?? null);
   const showLatest =
     repo.anyRelease === 'has' && (repo.stableRelease !== 'has' || latestTag !== stableTag);
-  const visibleTopics = topicsExpanded ? repo.topics : repo.topics.slice(0, TOPIC_LIMIT);
+  // Topic collapse (§13 M1.2e): deterministic threshold (TOPIC_LIMIT), LOCAL
+  // presentation state only. Selected (actively filtering) topics are NEVER
+  // hidden behind the collapsed state: they render first, and the unselected
+  // fill takes whatever room remains. Ordering is selected-first in BOTH
+  // states so toggling never reshuffles the list.
+  const selectedSet = new Set(selectedTopics);
+  const selectedInRepo = repo.topics.filter((t) => selectedSet.has(t));
+  const unselectedInRepo = repo.topics.filter((t) => !selectedSet.has(t));
+  const orderedTopics = [...selectedInRepo, ...unselectedInRepo];
+  const visibleTopics = topicsExpanded
+    ? orderedTopics
+    : orderedTopics.slice(0, Math.max(TOPIC_LIMIT, selectedInRepo.length));
   const hiddenTopicCount = Math.max(0, repo.topics.length - visibleTopics.length);
   const aiGenerated = repo.ai ? fmtDate(repo.ai.generatedAt) : null;
 
@@ -115,6 +142,23 @@ export function RepositoryCard({ repo, now = new Date() }: { repo: DerivedRepo; 
                 {repo.hydration_status === 'failed' ? 'Data unavailable' : 'Partial data'}
               </span>
             ) : null}
+            {/* Skill-category badges (P7 §4.11/§8): one card, primary then ≤1
+                secondary (v1), full taxonomy labels. `repo.skills` is null
+                whenever the layer is not ready or the repo is unclassified, so
+                absence of the layer renders this card byte-identically. */}
+            {repo.skills ? (
+              <>
+                <span className="badge badge-skill">
+                  {skillCategoryLabels?.get(repo.skills.primaryCategoryId) ??
+                    repo.skills.primaryCategoryId}
+                </span>
+                {repo.skills.secondaryCategoryIds.map((id) => (
+                  <span key={id} className="badge badge-skill badge-skill--secondary">
+                    {skillCategoryLabels?.get(id) ?? id}
+                  </span>
+                ))}
+              </>
+            ) : null}
           </span>
         </div>
         <span className="star-count">
@@ -133,6 +177,13 @@ export function RepositoryCard({ repo, now = new Date() }: { repo: DerivedRepo; 
           {repo.description}
         </p>
       ) : null}
+
+      {/* Curated classification summary (P7 §4.12, SEQ-2 flipped): rendered
+          above the AI section — curated metadata reads above the AI layer in
+          the trust order. `repo.skills` is null whenever the layer is not
+          coherent-ready or the repo is unclassified, so absence renders this
+          card byte-identically (SKILLS-3 untouched by construction). */}
+      {repo.skills ? <p className="card-skill-summary">{repo.skills.summary}</p> : null}
 
       {repo.ai ? (
         <section className="card-ai" aria-label="AI enrichment">
@@ -185,15 +236,15 @@ export function RepositoryCard({ repo, now = new Date() }: { repo: DerivedRepo; 
               {t}
             </li>
           ))}
-          {hiddenTopicCount > 0 ? (
+          {topicsExpanded || hiddenTopicCount > 0 ? (
             <li>
               <button
                 type="button"
                 className="topic topic-more"
                 aria-expanded={topicsExpanded}
-                onClick={() => setTopicsExpanded(true)}
+                onClick={() => setTopicsExpanded((v) => !v)}
               >
-                +{hiddenTopicCount}
+                {topicsExpanded ? 'Show fewer' : `+${hiddenTopicCount}`}
               </button>
             </li>
           ) : null}

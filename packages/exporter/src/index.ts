@@ -11,7 +11,7 @@ import {
   ValidationFailedError,
 } from '@starred/github-client';
 import { type CanonicalRepo, type RunMeta, RunMetaSchema, SCHEMA_VERSION } from '@starred/schema';
-import { type Config, loadConfig, readToken } from './config';
+import { type Config, loadConfig, readToken, resolveRetryConfig } from './config';
 import { evaluateDegraded } from './degraded';
 import { type EnumerateDeps, enumerate } from './enumerate';
 import { type GitPublisher, RealGitPublisher } from './git';
@@ -54,7 +54,8 @@ export async function run(options: RunOptions = {}): Promise<RunOutcome> {
   const now = options.now ?? (() => new Date());
   const config = loadConfig(options.configPath);
   const outDir = options.outDir ?? process.cwd();
-  const coordinator = options.coordinator ?? new RetryCoordinator();
+  const coordinator =
+    options.coordinator ?? new RetryCoordinator({ config: resolveRetryConfig(options.env) });
   const git = options.git ?? new RealGitPublisher(outDir);
 
   const enumeration = await enumerate(resolveDeps(options), {
@@ -251,10 +252,15 @@ export async function run(options: RunOptions = {}): Promise<RunOutcome> {
   writeMeta(meta);
 
   if (publishResult.datasetChanged && !publishResult.commitCreated) {
-    throw new DeferredError('git commit failed; remote last-known-good unchanged', 'COMMIT_FAILED');
+    throw new DeferredError(
+      withFailureDetail('git commit failed; remote last-known-good unchanged', publishResult),
+      'COMMIT_FAILED',
+    );
   }
   if (publishResult.datasetChanged && publishResult.commitCreated && !publishResult.pushSucceeded) {
-    throw new PushFailedError('git push failed; remote last-known-good unchanged');
+    throw new PushFailedError(
+      withFailureDetail('git push failed; remote last-known-good unchanged', publishResult),
+    );
   }
 
   return {
@@ -265,4 +271,13 @@ export async function run(options: RunOptions = {}): Promise<RunOutcome> {
     config,
     runMeta: meta,
   };
+}
+
+/**
+ * Append the underlying git failure detail (already URL-credential redacted by
+ * the git layer; token-redacted again by the CLI) so deferred-publication logs
+ * are actionable instead of opaque.
+ */
+function withFailureDetail(base: string, result: PublishResult): string {
+  return result.failure ? `${base}: ${result.failure.message}` : base;
 }

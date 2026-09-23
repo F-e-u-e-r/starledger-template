@@ -142,3 +142,31 @@ P4 is complete when:
    key custody.
 10. Clean-room validation passes (see
     [`docs/setup/clean-room-validation.md`](./setup/clean-room-validation.md)).
+
+The required base deployment path is verified by the **hosted** clean-room
+validation completed on 2026-06-24 (below). The smoke run deliberately left the
+optional AI executor unconfigured; its PR-gated flow remains documented in
+[`docs/setup/ai-executor.md`](./setup/ai-executor.md).
+
+## Hosted validation (complete — 2026-06-24)
+
+Hosted clean-room validation completed using a temporary smoke repo created from
+`starledger-template`. The smoke repo ran `setup:doctor`, synced 501 stars,
+generated `stars.json` + `dataset-meta.json`, deployed GitHub Pages, and verified
+dashboard search/filter behavior. The smoke repo has since been made **private**
+to avoid leaving personal starred-repository data publicly exposed.
+
+| Fact            | Value                                                           |
+| --------------- | --------------------------------------------------------------- |
+| Template repo   | `F-e-u-e-r/starledger-template` (GitHub template repository)    |
+| Smoke repo      | `F-e-u-e-r/starledger-template-smoke` (now private / temporary) |
+| Release         | `v1.2.0-alpha.1`                                                |
+| Sync result     | 501 repositories                                                |
+| Pages deploy    | passed                                                          |
+| Dashboard       | search + language filter verified                               |
+| AI artifacts    | absent, as expected                                             |
+| notify/ai-state | did not auto-run (dispatch-only in the template)                |
+
+The smoke repo is private and temporary — do not treat its URL as a permanent
+public artifact. Future template validation should use ephemeral smoke repos:
+create → validate → document → make private or delete.

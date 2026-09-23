@@ -14,6 +14,10 @@ export interface FilterState {
   licenses: string[];
   categories: string[];
   aiTags: string[];
+  /** Skills-ecosystem scope (P7 §4.11): `true` = only classified repos. `false` = no constraint. */
+  skillsScope: boolean;
+  /** Skill-category ids (§4.11): matches primary OR secondary category. */
+  skillCategories: string[];
   archived: boolean | null;
   fork: boolean | null;
   stableRelease: ReleaseAvailability[];
@@ -28,6 +32,8 @@ export const EMPTY_FILTERS: FilterState = {
   licenses: [],
   categories: [],
   aiTags: [],
+  skillsScope: false,
+  skillCategories: [],
   archived: null,
   fork: null,
   stableRelease: [],
@@ -54,6 +60,21 @@ export function applyFilters<T extends DerivedRepo>(repos: readonly T[], f: Filt
       return false;
     }
     if (f.aiTags.length > 0 && !(repo.ai && repo.ai.tags.some((t) => f.aiTags.includes(t)))) {
+      return false;
+    }
+    // Skills facets (P7 §4.11): a repo with no classification record cannot match
+    // the scope or a skill category — correct narrowing when the layer is ready
+    // ("absence is not a classification" governs display, not filtering); the
+    // not-ready neutralization happens upstream in `dashboardToView`, never here.
+    if (f.skillsScope && !repo.skills) return false;
+    if (
+      f.skillCategories.length > 0 &&
+      !(
+        repo.skills &&
+        (f.skillCategories.includes(repo.skills.primaryCategoryId) ||
+          repo.skills.secondaryCategoryIds.some((id) => f.skillCategories.includes(id)))
+      )
+    ) {
       return false;
     }
     if (f.archived !== null && repo.is_archived !== f.archived) return false;

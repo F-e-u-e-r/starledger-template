@@ -69,6 +69,8 @@ export interface PublishResult {
   commitCreated: boolean;
   pushSucceeded: boolean;
   sha256: string;
+  /** Diagnostic detail when commit/push failed; surfaced (redacted) by the caller. */
+  failure?: { stage: 'commit' | 'push'; message: string };
 }
 
 /**
@@ -166,23 +168,29 @@ export async function publishDataset(input: PublishInput): Promise<PublishResult
   try {
     await input.git.commit([input.starsFileName, input.datasetMetaFileName], COMMIT_MESSAGE);
     commitCreated = true;
-  } catch {
+  } catch (err) {
     return {
       datasetChanged: true,
       staged: true,
       commitCreated: false,
       pushSucceeded: false,
       sha256: hash,
+      failure: { stage: 'commit', message: (err as Error).message },
     };
   }
 
-  let pushSucceeded = false;
   try {
     await input.git.push();
-    pushSucceeded = true;
-  } catch {
-    pushSucceeded = false;
+  } catch (err) {
+    return {
+      datasetChanged: true,
+      staged: true,
+      commitCreated,
+      pushSucceeded: false,
+      sha256: hash,
+      failure: { stage: 'push', message: (err as Error).message },
+    };
   }
 
-  return { datasetChanged: true, staged: true, commitCreated, pushSucceeded, sha256: hash };
+  return { datasetChanged: true, staged: true, commitCreated, pushSucceeded: true, sha256: hash };
 }

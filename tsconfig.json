@@ -8,6 +8,7 @@
     { "path": "./packages/exporter" },
     { "path": "./packages/deploy" },
     { "path": "./packages/notifier" },
-    { "path": "./packages/classifier" }
+    { "path": "./packages/classifier" },
+    { "path": "./packages/discovery" }
   ]
 }

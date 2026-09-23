@@ -1,0 +1,16 @@
+# Discovery Decisions — human-owned candidate status overrides (P5)
+#
+# Use this file to dismiss or promote discovery candidates.
+# The repo field is case-insensitive owner/name.
+# Generated artifacts apply these decisions deterministically.
+#
+# Copy this file to config/discovery-decisions.yaml and add your decisions.
+dismissed: []
+# Examples:
+# - repo: octocat/Hello-World
+#   reason: fixture only
+
+promoted: []
+# Examples:
+# - repo: actualbudget/actual
+#   reason: worth starring later

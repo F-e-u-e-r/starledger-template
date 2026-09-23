@@ -86,4 +86,30 @@ describe('RetryCoordinator (RATE-1..6)', () => {
       }),
     ).rejects.toBeInstanceOf(SecondaryLimitCooldownExceededError);
   });
+
+  // The daily Sync stars job widens the budget (STARLEDGER_RETRY_MAX_TOTAL_WAIT_MS)
+  // so a 300s secondary-limit Retry-After is waited out instead of aborting.
+  it('honors a 300s secondary cooldown under a widened 600s budget', async () => {
+    const coord = makeTestCoordinator({ maxTotalWaitMs: 600_000 });
+    let calls = 0;
+    const result = await coord.run(async () => {
+      calls += 1;
+      if (calls === 1) {
+        throw httpError(403, 'secondary rate limit', { 'retry-after': '300' });
+      }
+      return 'ok';
+    });
+    expect(result).toBe('ok');
+    expect(coord.telemetry.secondaryLimitEvents).toBe(1);
+    expect(coord.telemetry.totalWaitMs).toBe(300_000);
+  });
+
+  it('still defers a 300s cooldown under the conservative 120s default budget', async () => {
+    const coord = makeTestCoordinator({ maxTotalWaitMs: 120_000 });
+    await expect(
+      coord.run(async () => {
+        throw httpError(403, 'secondary rate limit', { 'retry-after': '300' });
+      }),
+    ).rejects.toBeInstanceOf(SecondaryLimitCooldownExceededError);
+  });
 });

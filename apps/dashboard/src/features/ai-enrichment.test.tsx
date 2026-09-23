@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { deriveAll, deriveRepo } from '../data/derive-fields';
 import {
@@ -7,6 +8,7 @@ import {
   parseDashboardState,
   serializeDashboardState,
 } from '../state/dashboard-state';
+import { useDashboardState } from '../state/use-dashboard-state';
 import { makeAnnotation, makeAnnotations, makeRepo } from '../test-utils';
 import { EMPTY_FILTERS, applyFilters } from './filters/filters';
 import { RepositoryCard } from './repositories/RepositoryCard';
@@ -17,6 +19,12 @@ import { buildSearchText, matchesSearchText } from './search/search';
 const NOW = new Date('2026-06-19T00:00:00Z');
 
 afterEach(cleanup);
+
+/** Provides the App-owned canonical-state controls (see RepositoryView.test). */
+function Harness(props: Omit<ComponentProps<typeof RepositoryView>, 'controls'>) {
+  const controls = useDashboardState();
+  return <RepositoryView {...props} controls={controls} />;
+}
 
 describe('AI join (P3.4)', () => {
   it('JOIN-1 / JOIN-3: annotations join by node_id; unannotated repos stay visible', () => {
@@ -135,12 +143,12 @@ describe('AI card + coverage (P3.4)', () => {
 
   it('UI-7: coverage count is accurate; absent AI renders fail-soft with no count', () => {
     const repos = [makeRepo({ node_id: 'R_1' }), makeRepo({ node_id: 'R_2' })];
-    const { rerender } = render(<RepositoryView repos={repos} initialNow={NOW} />);
+    const { rerender } = render(<Harness repos={repos} initialNow={NOW} />);
     expect(screen.queryByText(/AI-enriched/)).toBeNull(); // fail-soft: still renders, no AI count
     expect(screen.getByText(/2 starred repositories/)).toBeTruthy();
 
     rerender(
-      <RepositoryView
+      <Harness
         repos={repos}
         initialNow={NOW}
         annotations={makeAnnotations({ R_1: makeAnnotation() })}
