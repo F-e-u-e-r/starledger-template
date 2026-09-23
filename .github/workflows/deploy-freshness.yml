@@ -6,11 +6,13 @@ name: Deploy freshness
 # but no deploy runs and the site silently freezes on stale data with no failed
 # run to notice. This job turns that invisible failure into a red scheduled run.
 on:
-  schedule:
-    # A few hours after the 05:23 sync + its deploy, so a healthy deploy has
-    # settled. A one-off drift can be a deploy in flight; a persistent red here
-    # is the silent-freeze signal.
-    - cron: '41 9 * * *'
+  # Scheduled triggers are disabled in the template until you set secrets.
+  # Uncomment to re-enable (see docs/setup/), and run once manually first:
+  # schedule:
+  #   # A few hours after the 05:23 sync + its deploy, so a healthy deploy has
+  #   # settled. A one-off drift can be a deploy in flight; a persistent red here
+  #   # is the silent-freeze signal.
+  #   - cron: '41 9 * * *'
   workflow_dispatch:
 
 # Strictly read-only: this monitor never writes to the repo, needs no Pages or

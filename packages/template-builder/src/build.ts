@@ -10,7 +10,7 @@ import {
   README_TEMPLATE,
   isExcluded,
 } from './allowlist';
-import { neutralizeSchedule, stripOmittedSteps } from './workflows';
+import { hasActiveSchedule, neutralizeSchedule, stripOmittedSteps } from './workflows';
 
 export interface BuildOptions {
   srcRoot: string;
@@ -92,6 +92,14 @@ export function buildTemplate(options: BuildOptions): BuildManifest {
         const stripped = stripOmittedSteps(text);
         text = stripped.text;
         changed = changed || stripped.changed;
+        // Fail-closed: the template never ships a workflow that fires on its own.
+        // A scheduled workflow must be listed in NEUTRALIZE_SCHEDULE_WORKFLOWS
+        // (emitted dispatch-only) or in EXCLUDE_WORKFLOWS (never emitted).
+        if (hasActiveSchedule(text)) {
+          throw new Error(
+            `template-builder: ${rel} still has a schedule trigger; add it to NEUTRALIZE_SCHEDULE_WORKFLOWS or EXCLUDE_WORKFLOWS in allowlist.ts`,
+          );
+        }
         writeText(rel, text);
         (changed ? manifest.transformed : manifest.copied).push(rel);
       } else {
