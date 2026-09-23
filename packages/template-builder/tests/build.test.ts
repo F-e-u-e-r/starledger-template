@@ -29,6 +29,20 @@ jobs:
     runs-on: ubuntu-latest
 `;
 
+/** Mirrors deploy-freshness.yml: no secret, comments inside the schedule block. */
+const DEPLOY_FRESHNESS = `name: Deploy freshness
+on:
+  schedule:
+    # A few hours after the sync, so a healthy deploy has settled.
+    - cron: '41 9 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+`;
+
 /** A miniature repo tree exercising every allowlist rule. */
 function fixtureRepo(): string {
   const src = tmp();
@@ -45,6 +59,7 @@ function fixtureRepo(): string {
   write(src, '.github/workflows/ci.yml', 'name: CI\non:\n  pull_request:\n');
   write(src, '.github/workflows/sync-stars.yml', SYNC_STARS);
   write(src, '.github/workflows/ai-state.yml', SYNC_STARS.replace('Sync stars', 'AI state'));
+  write(src, '.github/workflows/deploy-freshness.yml', DEPLOY_FRESHNESS);
   return src;
 }
 
@@ -94,6 +109,14 @@ describe('buildTemplate', () => {
     const aiState = readFileSync(join(out, '.github/workflows/ai-state.yml'), 'utf8');
     expect(/^ {2}schedule:/m.test(aiState)).toBe(false);
     expect(m.transformed).toContain(join('.github', 'workflows', 'ai-state.yml'));
+
+    // deploy-freshness.yml needs no secret, but on a fresh repo (no committed
+    // dataset, no live site yet) a scheduled run can only alarm — dispatch-only.
+    const freshness = readFileSync(join(out, '.github/workflows/deploy-freshness.yml'), 'utf8');
+    expect(/^ {2}schedule:/m.test(freshness)).toBe(false);
+    expect(freshness).toContain("  #   - cron: '41 9 * * *'");
+    expect(freshness).toContain('workflow_dispatch:');
+    expect(m.transformed).toContain(join('.github', 'workflows', 'deploy-freshness.yml'));
 
     // ci.yml has no schedule and is copied verbatim.
     expect(readFileSync(join(out, '.github/workflows/ci.yml'), 'utf8')).toBe(

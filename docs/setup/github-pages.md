@@ -40,6 +40,16 @@ Pages re-runs on:
 - a push to `main` touching `stars.json`, `dataset-meta.json`,
   `ai-annotations*.json`, `apps/dashboard/**`, `packages/**`, or `pages.yml`.
 
+## Deploy-freshness monitor
+
+[`deploy-freshness.yml`](../../.github/workflows/deploy-freshness.yml) compares
+the live `dataset-meta.json` with the copy committed on `main` and fails on drift
+— the signal that a sync landed but its deploy silently never ran. It needs no
+secret, but until a dataset is committed and Pages serves it the check can only
+alarm, so the template ships it **dispatch-only**. Once the first deploy is
+live, run it once from Actions → "Deploy freshness", then uncomment the `cron:`
+line the builder preserved to schedule it daily.
+
 ## Verify
 
 ```bash

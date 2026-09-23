@@ -61,11 +61,19 @@ export const EXCLUDE_BASENAMES = new Set([
   'notifier.yaml',
 ]);
 
-/** Workflows whose `schedule:` trigger is neutralized (dispatch-only) in the template. */
+/**
+ * Workflows whose `schedule:` trigger is neutralized (dispatch-only) in the
+ * template. `deploy-freshness.yml` needs no secret, but it compares the live
+ * Pages site against the committed dataset — neither exists on a fresh template
+ * repo, so a scheduled run there can only alarm. The build fails if an emitted
+ * workflow still carries a live schedule (see build.ts), so a new scheduled
+ * workflow must be listed here or in EXCLUDE_WORKFLOWS before it can ship.
+ */
 export const NEUTRALIZE_SCHEDULE_WORKFLOWS = new Set([
   'sync-stars.yml',
   'notify.yml',
   'ai-state.yml',
+  'deploy-freshness.yml',
 ]);
 
 /**

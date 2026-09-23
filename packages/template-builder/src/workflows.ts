@@ -96,6 +96,33 @@ export function neutralizeSchedule(yaml: string): NeutralizeResult {
   return { text: out.join('\n'), changed };
 }
 
+/**
+ * True if the workflow still has a live `on.schedule` trigger. This PARSES the
+ * YAML rather than scanning lines, so `schedule` inside a comment or a `run:`
+ * script — and the commented-out block neutralizeSchedule leaves behind — does
+ * not count, while the flow form `on: { schedule: [...] }` does. A workflow that
+ * does not parse throws: the builder must fail closed rather than emit a trigger
+ * it could not inspect.
+ */
+export function hasActiveSchedule(yaml: string): boolean {
+  let doc: unknown;
+  try {
+    doc = parseYaml(yaml);
+  } catch (err) {
+    throw new Error(
+      `template-builder: workflow does not parse (${err instanceof Error ? err.message : String(err)})`,
+    );
+  }
+  if (doc === null || typeof doc !== 'object') return false;
+  // The `yaml` package (YAML 1.2) keeps the bare key `on` as a string; a YAML 1.1
+  // parser would read it as boolean true. Accept both so the guard cannot be
+  // sidestepped by the parser's choice.
+  const record = doc as Record<string, unknown>;
+  const on = record['on'] ?? record['true'];
+  if (on === null || typeof on !== 'object' || Array.isArray(on)) return false;
+  return 'schedule' in on;
+}
+
 /** Marker comment: the workflow step that follows it is omitted from the template. */
 export const OMIT_STEP_MARKER = '# template-builder: omit';
 

@@ -98,16 +98,23 @@ manual merge recommended · auto-merge disabled initially
 
 ## Scheduled-workflow safety (template default: manual dispatch)
 
-In the production repo the exporter, notifier, and AI state reconciler run on a
-schedule. A brand-new template repo has **no secrets yet**, so a scheduled run
-would fail noisily (`sync-stars` needs `STAR_SYNC_TOKEN`; `notify` throws
-without Telegram creds) or create optional AI operational state before the user
-has opted in. To keep the opt-in invariant — _nothing runs until you ask_ — the
-builder emits `sync-stars.yml`, `notify.yml`, and `ai-state.yml` as
+In the production repo the exporter, notifier, AI state reconciler, and the
+deploy-freshness monitor run on a schedule. A brand-new template repo has **no
+secrets yet**, so a scheduled run would fail noisily (`sync-stars` needs
+`STAR_SYNC_TOKEN`; `notify` throws without Telegram creds) or create optional AI
+operational state before the user has opted in; `deploy-freshness` needs no
+secret, but it compares the live Pages site against the committed dataset, and
+neither exists on a fresh repo, so a scheduled run there can only alarm. To keep
+the opt-in invariant — _nothing runs until you ask_ — the builder emits
+`sync-stars.yml`, `notify.yml`, `ai-state.yml`, and `deploy-freshness.yml` as
 **`workflow_dispatch`-only** in the template, with the original `cron:`
 preserved as a comment. The user re-enables automation deliberately after
-`setup:doctor` passes. `pages.yml` already guards on `hashFiles('stars.json')`,
-so it remains a green no-op on a dataless repo and is shipped unchanged.
+`setup:doctor` passes. The builder enforces this contract: it fails if any
+emitted workflow still carries a live `schedule:` trigger, so a new scheduled
+workflow must be added to `NEUTRALIZE_SCHEDULE_WORKFLOWS` or `EXCLUDE_WORKFLOWS`
+before the template can be built. `pages.yml` already guards on
+`hashFiles('stars.json')`, so it remains a green no-op on a dataless repo and is
+shipped unchanged.
 
 ## Tooling
 
