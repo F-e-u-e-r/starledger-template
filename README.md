@@ -1,6 +1,8 @@
-# StarLedger
+# StarLedger Template
 
-![status](https://img.shields.io/badge/status-ACTIVE-7aa2ff)
+**Deploy your own GitHub-stars dashboard on infrastructure you own — no backend, no key custody.**
+
+![status](https://img.shields.io/badge/status-ACTIVE-7aa2ff) [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 Your own GitHub stars **dashboard**, optional Telegram **notifier**, and optional
 **AI enrichment** — deployed entirely on infrastructure you own. No central
