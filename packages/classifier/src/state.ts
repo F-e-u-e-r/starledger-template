@@ -27,6 +27,24 @@ export type ClassifierErrorCode = z.infer<typeof ClassifierErrorCodeSchema>;
  * terminal-unavailable flag. It deliberately holds NO README content, prompt,
  * candidate, model response, secret, or raw upstream error body; `.strict()` plus
  * the bounded `last_error_code` enforce that by construction.
+ *
+ * DORMANT FAILURE BOOKKEEPING — read-ready, not auto-originated today. The planner
+ * READS `attempts` / `next_retry_at` / `last_error_code` / `terminal_unavailable`
+ * (retry backoff and the `skip-terminal` bucket), but NO runtime code ORIGINATES a
+ * non-default value: `planner.ts` `nextEntry` only carries prior state forward, the
+ * sole state writer is `plan --save-state` (`.github/workflows/ai-state.yml`, which
+ * persists exactly that carried-forward state), and the executor's `reconcileRun`
+ * reports `pendingRetry` to stdout without persisting it. So under current code
+ * `attempts` stays 0, `next_retry_at`/`last_error_code` stay null, and
+ * `terminal_unavailable` stays false — UNLESS a value is seeded from OUTSIDE this
+ * code (a manual edit of the state branch, historical state, or a future
+ * retry/terminal-quarantine writer), which the planner then carries forward and
+ * acts on. Both the retry-backoff and terminal residuals are dormant in exactly
+ * this sense. These fields are forward-compatible scaffolding for the deferred
+ * retry/terminal-quarantine + circuit-breaker follow-up (routine spec "Deferred
+ * follow-ups"; issue #207 item 5b); the planner and completion gate already treat
+ * any such residual as un-drained (fail closed), so such state can appear later
+ * without the empty-manifest contract silently reading it as complete.
  */
 export const ClassifierRepoStateSchema = z
   .object({

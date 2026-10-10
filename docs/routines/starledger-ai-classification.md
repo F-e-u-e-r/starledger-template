@@ -384,7 +384,15 @@ command and stop.
   classifier state machine, so it stops being re-offered (and starving a slot) every
   run; and a circuit breaker to auto-disable after N failed runs (failed runs
   only — a protocol-passing empty manifest, prompt step 3d, is healthy steady
-  state, not a failure).
+  state, not a failure). The **writer and the breaker stay deferred** — no runtime
+  path sets `terminal_unavailable` (the planner only carries it forward; the
+  dormant failure-bookkeeping fields are documented in
+  `packages/classifier/src/state.ts`). Their **outcome contract is now closed**
+  (issue #207 item 5b): a terminally-unavailable repo already buckets
+  `skip-terminal`, is counted in `plan_summary.deferred_terminal`, labels the empty
+  manifest `deferred`, and is rejected by the completion gate — so when such a
+  writer lands, its page-the-operator residual cannot silently read as a drained
+  (`drained-at-base`) backlog, nor as an ordinary exit-0 failure.
 - **knownPath residuals** (2026-07-17, follow-up to the PRs #91/#92 fix): a README
   larger than 1 MB comes back from the REST readme endpoint with
   `encoding:"none"` and no bytes; the source seam now reports it as "no usable

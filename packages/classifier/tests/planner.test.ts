@@ -423,6 +423,7 @@ describe('planner — plan_summary diagnostics (issue #207)', () => {
       eligible_refresh: 0,
       omitted_unfetchable: 0,
       deferred_retry: 0,
+      deferred_terminal: 0,
       empty_reason: null,
     });
   });
@@ -449,6 +450,7 @@ describe('planner — plan_summary diagnostics (issue #207)', () => {
       eligible_refresh: 1,
       omitted_unfetchable: 0,
       deferred_retry: 0,
+      deferred_terminal: 0,
       empty_reason: 'zero-budget',
     });
   });
@@ -500,6 +502,7 @@ describe('planner — plan_summary diagnostics (issue #207)', () => {
       eligible_refresh: 0,
       omitted_unfetchable: 0,
       deferred_retry: 0,
+      deferred_terminal: 0,
       empty_reason: 'drained-at-base',
     });
   });
@@ -520,6 +523,7 @@ describe('planner — plan_summary diagnostics (issue #207)', () => {
       eligible_refresh: 0,
       omitted_unfetchable: 1,
       deferred_retry: 0,
+      deferred_terminal: 0,
       empty_reason: 'all-omitted',
     });
   });
@@ -564,7 +568,62 @@ describe('planner — plan_summary diagnostics (issue #207)', () => {
       eligible_refresh: 0,
       omitted_unfetchable: 0,
       deferred_retry: 1,
+      deferred_terminal: 0,
       empty_reason: 'deferred',
     });
+  });
+
+  it('#207 5b DEFENSIVE CONTRACT: a terminally-unavailable repo is skip-terminal → deferred (NOT drained), deferred_terminal:1', async () => {
+    // DEFENSIVE / DORMANT-STATE TEST. `terminal_unavailable: true` is NOT reachable
+    // in production today — no runtime path writes it (planner `nextEntry` only
+    // carries the flag forward; there is no circuit-breaker / terminal-quarantine
+    // writer). This hand-built state exercises the fail-closed contract such a
+    // future writer must honor: a terminal residual must bucket `skip-terminal`,
+    // count in `deferred_terminal`, and label the manifest `deferred` — never
+    // `drained-at-base`, which requires EVERY decision to be `skip-current`. Paired
+    // with the gate falsification case in scripts/p3-completion-gate.test.mjs.
+    const a = repo('a');
+    const config = aiConfig({ budget: prodBudget });
+    const state: ClassifierState = {
+      schema_version: '1.0',
+      repos: [
+        {
+          node_id: 'R_a',
+          readme_path: 'README.md',
+          readme_oid: 'R_a',
+          last_fingerprint: null,
+          // attempts 0 + last_error_code null ISOLATE terminal_unavailable as the
+          // sole non-default field, proving the flag ALONE drives skip-terminal
+          // (the bucket precedence reads only `prior.terminal_unavailable`).
+          attempts: 0,
+          last_error_code: null,
+          next_retry_at: null,
+          terminal_unavailable: true,
+        },
+      ],
+    };
+    // A stale annotation so the node_id sets would be equal at the gate — the exact
+    // shape that must NOT read as a drained backlog.
+    const annotations = [makeAnnotationFor(a, 'f'.repeat(64), { path: 'README.md', oid: 'stale' })];
+    const { manifest, decisions } = await plan({
+      repos: [a],
+      source: readmeSource([a]),
+      config,
+      state,
+      annotations,
+    });
+    expect(decisions.find((d) => d.node_id === 'R_a')?.bucket).toBe('skip-terminal');
+    expect(manifest.jobs).toHaveLength(0);
+    expect(manifest.plan_summary).toEqual({
+      eligible_new: 0,
+      eligible_retry: 0,
+      eligible_refresh: 0,
+      omitted_unfetchable: 0,
+      deferred_retry: 0,
+      deferred_terminal: 1,
+      empty_reason: 'deferred',
+    });
+    // The success-like state must be impossible here.
+    expect(manifest.plan_summary?.empty_reason).not.toBe('drained-at-base');
   });
 });

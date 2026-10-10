@@ -24,9 +24,20 @@ function compareText(a: string, b: string): number {
  *                     ceiling truncated all of it away.
  *   - `all-omitted` — work was selected within budget but every job was omitted
  *                     because its README bytes were not fetchable this run.
- *   - `deferred`    — the only remaining repos are held back (a retry still in
- *                     backoff, or a terminally-unavailable repo) — not actionable
- *                     this run, but NOT a drained backlog either.
+ *   - `deferred`    — the only remaining repos are held back and not actionable
+ *                     this run, but NOT a drained backlog: a retry still in
+ *                     backoff (counted in `deferred_retry`) or a
+ *                     terminally-unavailable repo (counted in `deferred_terminal`).
+ *                     The two counts EXHAUSTIVELY decompose this reason, so a
+ *                     `deferred` empty manifest always has at least one of them > 0.
+ *                     BOTH sub-cases are DORMANT today: no runtime code ORIGINATES
+ *                     `attempts > 0` or `terminal_unavailable = true` (the planner
+ *                     only carries prior state forward; there is no retry or
+ *                     terminal-quarantine writer — see `state.ts`), so under current
+ *                     code this reason does not occur. It is forward-compatible
+ *                     scaffolding (#207 5b): a future writer — or externally-seeded
+ *                     state — activates it, and the completion gate already fails
+ *                     closed on it rather than reading it as `drained-at-base`.
  * There is deliberately no `executor-mismatch`: an executor-kind change alters
  * each repo's fingerprint and surfaces as ordinary refresh eligibility (i.e.
  * `zero-budget` under a 0 refresh ceiling), not a distinct empty reason.
@@ -69,6 +80,23 @@ export const PlanSummarySchema = z
      * gate cannot read their absence from eligible_* as a drained backlog.
      */
     deferred_retry: z.number().int().nonnegative(),
+    /**
+     * Repos skipped this run because their operational state carries
+     * `terminal_unavailable` (a repository the classifier has given up on). Like
+     * `deferred_retry` these are a skip bucket absent from eligible_*, surfaced so
+     * the completion gate cannot read their absence as a drained backlog.
+     *
+     * DORMANT TODAY: no runtime code ORIGINATES `terminal_unavailable = true` — the
+     * planner only carries prior state forward (`planner.ts` `nextEntry`), and there
+     * is no circuit breaker / terminal-quarantine writer — so this count is 0 unless
+     * such state is seeded from outside this code (equally true of `deferred_retry`;
+     * see `state.ts`). It is the machine-readable, fail-closed half of the deferred
+     * terminal-quarantine / circuit-breaker follow-up (routine spec "Deferred
+     * follow-ups"): when such a writer is built, its page-the-operator residual is
+     * already counted here and already rejected by the completion gate, rather than
+     * collapsing into a success-like `drained-at-base` (issue #207 item 5b).
+     */
+    deferred_terminal: z.number().int().nonnegative(),
     /** Why the manifest is empty; null IFF jobs > 0. See PLAN_EMPTY_REASONS. */
     empty_reason: PlanEmptyReasonSchema.nullable(),
   })
@@ -198,6 +226,7 @@ export function serializeClassificationManifest(manifest: ClassificationManifest
                 eligible_refresh: validated.plan_summary.eligible_refresh,
                 omitted_unfetchable: validated.plan_summary.omitted_unfetchable,
                 deferred_retry: validated.plan_summary.deferred_retry,
+                deferred_terminal: validated.plan_summary.deferred_terminal,
                 empty_reason: validated.plan_summary.empty_reason,
               },
             }
