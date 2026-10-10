@@ -149,11 +149,12 @@ Deterministic CLI sequence (from the runbook):
    3b. Config health (only after 3a passed). Read config/ai.yaml. Structural
        check FIRST: if the file is missing or unreadable, or any of these keys
        is absent or non-conforming in type — ai.enabled (boolean),
-       ai.executor_kind (string), and the four numeric budget ceilings
-       max_new_per_run, max_retry_per_run, max_refresh_per_run,
-       max_total_per_run — report "zero jobs; config unverifiable; no
-       conclusion" and exit 0. Value checks SECOND: ai.enabled is true;
-       ai.executor_kind is claude-routine; max_total_per_run > 0. If a value
+       ai.executor_kind (string), and the four numeric budget ceilings under
+       ai.budget — ai.budget.max_new_per_run, ai.budget.max_retry_per_run,
+       ai.budget.max_refresh_per_run, ai.budget.max_total_per_run — report
+       "zero jobs; config unverifiable; no conclusion" and exit 0. Value checks
+       SECOND: ai.enabled is true; ai.executor_kind is claude-routine;
+       ai.budget.max_total_per_run > 0. If a value
        check fails, report that specific cause and exit 0 — do NOT say the
        backlog or manifest is empty. Cross-check: when disabled, the step-2
        plan output prints "AI classification disabled".
@@ -197,8 +198,9 @@ Deterministic CLI sequence (from the runbook):
        with this evidence block and nothing stronger, then exit 0: BASE_SHA;
        dataset_sha256 from .ai-runs/manifest.json; the 3c counts (stars,
        annotations, missing, extra, duplicates); the configured budget ceilings
-       from config/ai.yaml (max_new_per_run, max_retry_per_run,
-       max_refresh_per_run, max_total_per_run); omitted count (0); planned job
+       from config/ai.yaml (ai.budget.max_new_per_run, ai.budget.max_retry_per_run,
+       ai.budget.max_refresh_per_run, ai.budget.max_total_per_run); omitted count
+       (0); planned job
        count (0). With retry/refresh ceilings at 0, a zero-job manifest does NOT
        prove every annotation is at its current fingerprint — never claim that.
        A 3d result is evidence that one budget-limited manifest was empty at one

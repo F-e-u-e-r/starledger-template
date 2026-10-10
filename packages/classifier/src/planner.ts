@@ -9,6 +9,7 @@ import {
   type ClassificationJob,
   type ClassificationManifest,
   type ClassificationReadmeInput,
+  type PlanEmptyReason,
 } from '@starred/ai-schema';
 import type { CanonicalRepo } from '@starred/schema';
 import type { AiConfig } from './config';
@@ -61,8 +62,11 @@ export interface PlanResult {
   /** Selected jobs dropped because the probed README's bytes were not fetchable
    * this run (see the omit path). Surfaced so an operator can tell "manifest is
    * empty because the backlog is DONE" apart from "empty because the remaining
-   * repos are being omitted every run" — the latter must not trigger the
-   * runbook's disable-the-routine guidance. */
+   * repos are being omitted every run" — the latter is UN-DRAINED work, not a
+   * drained backlog, and the steady-state doctrine never disables the routine
+   * over a zero-job run (docs/P3.2-executor-runbook.md; routine-spec step 3c).
+   * Also reported as a machine-readable count in the manifest
+   * (`plan_summary.omitted_unfetchable`). */
   omittedUnfetchable: string[];
 }
 
@@ -346,12 +350,48 @@ export async function planClassification(input: PlanInput): Promise<PlanResult> 
     );
   }
 
+  // Pre-budget eligibility (issue #207 items 1 & 2): every repo bucketed as work
+  // BEFORE the per-bucket/global ceilings truncate selection. A changed-source
+  // repo under a 0 refresh/retry ceiling is eligible here yet produces no job, so
+  // these counts — not jobs.length — are what the completion gate must trust.
+  const eligible_new = decisions.filter((d) => d.bucket === 'new').length;
+  const eligible_retry = decisions.filter((d) => d.bucket === 'retry').length;
+  const eligible_refresh = decisions.filter((d) => d.bucket === 'refresh').length;
+  // Repos held in retry backoff (attempts > 0, next_retry_at not yet due) are a
+  // SKIP bucket, so they are NOT in eligible_*, yet they are un-drained work: the
+  // completion gate must not read their absence from eligible_* as a drained
+  // backlog (issue #207 item 2). Counted so the gate can require it to be zero.
+  const deferred_retry = decisions.filter((d) => d.bucket === 'skip-retry-pending').length;
+  let empty_reason: PlanEmptyReason | null = null;
+  if (jobs.length === 0) {
+    // Exhaustive for an empty manifest. eligible work truncated by a 0 budget →
+    // zero-budget; selected within budget but every job omitted → all-omitted;
+    // nothing eligible but a repo is held back (retry backoff, or terminal) →
+    // deferred. Only when EVERY decision is skip-current is it truly drained —
+    // so no non-skip-current residual (retry-pending/terminal) can be mislabeled.
+    if (eligible_new + eligible_retry + eligible_refresh > 0) {
+      empty_reason = selected.length === 0 ? 'zero-budget' : 'all-omitted';
+    } else if (!decisions.every((d) => d.bucket === 'skip-current')) {
+      empty_reason = 'deferred';
+    } else {
+      empty_reason = 'drained-at-base';
+    }
+  }
+
   const manifest = buildClassificationManifest({
     promptVersion,
     executionProfileVersion: profileVersion,
     executorKind,
     datasetSha256,
     jobs,
+    planSummary: {
+      eligible_new,
+      eligible_retry,
+      eligible_refresh,
+      omitted_unfetchable: omittedUnfetchable.length,
+      deferred_retry,
+      empty_reason,
+    },
   });
 
   const nextState = ClassifierStateSchema.parse({

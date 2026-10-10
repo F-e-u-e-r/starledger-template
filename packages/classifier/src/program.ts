@@ -100,6 +100,16 @@ export function buildProgram(): Command {
               executorKind: config.ai.executor_kind,
               datasetSha256: dataset.datasetSha256,
               jobs: [],
+              // No discovery ran: the empty manifest is 'disabled', NOT a drained
+              // backlog. The completion gate rejects this reason (issue #207).
+              planSummary: {
+                eligible_new: 0,
+                eligible_retry: 0,
+                eligible_refresh: 0,
+                omitted_unfetchable: 0,
+                deferred_retry: 0,
+                empty_reason: 'disabled',
+              },
             });
             writeText(opts.out, serializeClassificationManifest(manifest));
             process.stdout.write(
@@ -140,10 +150,13 @@ export function buildProgram(): Command {
               `(dataset ${dataset.datasetSha256.slice(0, 12)}…): ${opts.out}\n`,
           );
           if (result.omittedUnfetchable.length > 0) {
-            // An empty/short manifest caused by unfetchable READMEs must be
-            // distinguishable from a DRAINED backlog: the runbook tells the
-            // operator to disable the routine on persistent empty manifests,
-            // which would be the wrong call here.
+            // An empty/short manifest caused by unfetchable READMEs must stay
+            // distinguishable from a DRAINED backlog: omitted-unfetchable is
+            // un-drained work that the zero-job protocol (routine-spec step 3c)
+            // and the completion gate treat as "not done", and the steady-state
+            // doctrine never disables the routine over a zero-job run
+            // (docs/P3.2-executor-runbook.md). Surfaced on stdout and, as a
+            // machine-readable count, in the manifest (plan_summary.omitted_unfetchable).
             process.stdout.write(
               `omitted ${result.omittedUnfetchable.length} probe-ok job(s) whose README bytes ` +
                 `were not fetchable this run (will re-plan next run): ` +

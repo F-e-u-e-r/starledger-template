@@ -16,7 +16,13 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['packages/**/tests/**/*.test.ts', 'apps/**/src/**/*.test.{ts,tsx}'],
+    include: [
+      'packages/**/tests/**/*.test.ts',
+      'apps/**/src/**/*.test.{ts,tsx}',
+      // Repo-level Node scripts (plain .mjs, outside any tsconfig/eslint scope)
+      // ship their pure logic unit-tested here — e.g. the P3 completion gate.
+      'scripts/**/*.test.mjs',
+    ],
     environment: 'node',
     // The worker-thread pool can hang without output on some environments
     // (observed in review); the process-fork pool is robust for these suites.
