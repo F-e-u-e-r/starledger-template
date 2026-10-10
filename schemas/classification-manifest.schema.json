@@ -273,6 +273,57 @@
             ],
             "additionalProperties": false
           }
+        },
+        "plan_summary": {
+          "type": "object",
+          "properties": {
+            "eligible_new": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "eligible_retry": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "eligible_refresh": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "omitted_unfetchable": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "deferred_retry": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "empty_reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "disabled",
+                    "zero-budget",
+                    "drained-at-base",
+                    "all-omitted",
+                    "deferred"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "eligible_new",
+            "eligible_retry",
+            "eligible_refresh",
+            "omitted_unfetchable",
+            "deferred_retry",
+            "empty_reason"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

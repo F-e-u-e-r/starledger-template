@@ -388,3 +388,183 @@ describe('planner — README probed but not fetchable (omit, never demote; PRs #
     expect(omittedUnfetchable).toEqual(['R_a']);
   });
 });
+
+describe('planner — plan_summary diagnostics (issue #207)', () => {
+  // Mirror production config/ai.yaml: new budget > 0, refresh/retry ceilings 0.
+  const prodBudget = {
+    max_new_per_run: 5,
+    max_refresh_per_run: 0,
+    max_retry_per_run: 0,
+    max_total_per_run: 5,
+  };
+
+  function readmeSource(repos: CanonicalRepo[]): FakeReadmeSource {
+    const entries: Record<string, FakeReadmeEntry> = {};
+    for (const r of repos) {
+      entries[`${r.owner}/${r.name}`] = {
+        ref: { path: 'README.md', oid: r.node_id },
+        content: `body for ${r.node_id}`,
+      };
+    }
+    return new FakeReadmeSource(readmeEntries(entries));
+  }
+
+  it('a NEW job records eligible_new and a null empty_reason (jobs present)', async () => {
+    const a = repo('a');
+    const { manifest } = await plan({
+      repos: [a],
+      source: readmeSource([a]),
+      config: aiConfig({ budget: prodBudget }),
+    });
+    expect(manifest.jobs).toHaveLength(1);
+    expect(manifest.plan_summary).toEqual({
+      eligible_new: 1,
+      eligible_retry: 0,
+      eligible_refresh: 0,
+      omitted_unfetchable: 0,
+      deferred_retry: 0,
+      empty_reason: null,
+    });
+  });
+
+  it('a budget-masked REFRESH: 0 jobs, eligible_refresh>0, empty_reason=zero-budget', async () => {
+    // The exact soundness hole (#207 item 2): a changed-fingerprint repo is
+    // bucketed refresh, then truncated by the 0 refresh ceiling. The manifest is
+    // empty, yet plan_summary exposes the un-drained refresh work so the
+    // completion gate cannot read "0 jobs" as a drained backlog.
+    const a = repo('a');
+    const config = aiConfig({ budget: prodBudget });
+    const annotations = [makeAnnotationFor(a, 'f'.repeat(64), { path: 'README.md', oid: 'stale' })];
+    const { manifest, decisions } = await plan({
+      repos: [a],
+      source: readmeSource([a]),
+      config,
+      annotations,
+    });
+    expect(decisions.find((d) => d.node_id === 'R_a')?.bucket).toBe('refresh');
+    expect(manifest.jobs).toHaveLength(0);
+    expect(manifest.plan_summary).toEqual({
+      eligible_new: 0,
+      eligible_retry: 0,
+      eligible_refresh: 1,
+      omitted_unfetchable: 0,
+      deferred_retry: 0,
+      empty_reason: 'zero-budget',
+    });
+  });
+
+  it('a budget-masked RETRY: 0 jobs, eligible_retry>0, empty_reason=zero-budget', async () => {
+    const a = repo('a');
+    const config = aiConfig({ budget: prodBudget });
+    const state: ClassifierState = {
+      schema_version: '1.0',
+      repos: [
+        {
+          node_id: 'R_a',
+          readme_path: 'README.md',
+          readme_oid: 'R_a',
+          last_fingerprint: null,
+          attempts: 1,
+          last_error_code: 'rate_limited' as const,
+          next_retry_at: '2026-06-18T00:00:00Z', // due (NOW is 2026-06-19)
+          terminal_unavailable: false,
+        },
+      ],
+    };
+    const { manifest, decisions } = await plan({
+      repos: [a],
+      source: readmeSource([a]),
+      config,
+      state,
+    });
+    expect(decisions.find((d) => d.node_id === 'R_a')?.bucket).toBe('retry');
+    expect(manifest.jobs).toHaveLength(0);
+    expect(manifest.plan_summary).toMatchObject({ eligible_retry: 1, empty_reason: 'zero-budget' });
+  });
+
+  it('a fully-current corpus reports drained-at-base (all eligible 0)', async () => {
+    const config = aiConfig({ budget: prodBudget });
+    const repos = ['a', 'b', 'c'].map((s) => repo(s));
+    const source = readmeSource(repos);
+    const annotations = repos.map((r) =>
+      makeAnnotationFor(r, expectedFingerprint(r, config, { path: 'README.md', oid: r.node_id }), {
+        path: 'README.md',
+        oid: r.node_id,
+      }),
+    );
+    const { manifest } = await plan({ repos, source, config, annotations });
+    expect(manifest.jobs).toHaveLength(0);
+    expect(manifest.plan_summary).toEqual({
+      eligible_new: 0,
+      eligible_retry: 0,
+      eligible_refresh: 0,
+      omitted_unfetchable: 0,
+      deferred_retry: 0,
+      empty_reason: 'drained-at-base',
+    });
+  });
+
+  it('a selected-but-unfetchable job reports all-omitted with omitted_unfetchable>0', async () => {
+    const a = repo('a');
+    const config = aiConfig({ budget: prodBudget });
+    // README probe succeeds (ref present) but bytes are not fetchable (no content).
+    const source = new FakeReadmeSource(
+      readmeEntries({ 'owner-a/repo-a': { ref: { path: 'README.md', oid: 'oid-1' } } }),
+    );
+    const { manifest, omittedUnfetchable } = await plan({ repos: [a], source, config });
+    expect(manifest.jobs).toHaveLength(0);
+    expect(omittedUnfetchable).toEqual(['R_a']);
+    expect(manifest.plan_summary).toEqual({
+      eligible_new: 1,
+      eligible_retry: 0,
+      eligible_refresh: 0,
+      omitted_unfetchable: 1,
+      deferred_retry: 0,
+      empty_reason: 'all-omitted',
+    });
+  });
+
+  it('#207: a repo in retry BACKOFF (skip-retry-pending) is counted deferred, not drained', async () => {
+    // Cross-model review finding: a stale-annotated repo whose retry is still in
+    // backoff is a SKIP bucket, absent from eligible_*. It must surface as
+    // deferred_retry>0 with empty_reason='deferred' so the completion gate cannot
+    // read "jobs==0 + node_id sets equal" as a drained backlog.
+    const a = repo('a');
+    const config = aiConfig({ budget: prodBudget });
+    const state: ClassifierState = {
+      schema_version: '1.0',
+      repos: [
+        {
+          node_id: 'R_a',
+          readme_path: 'README.md',
+          readme_oid: 'R_a',
+          last_fingerprint: null,
+          attempts: 1,
+          last_error_code: 'rate_limited' as const,
+          next_retry_at: '2026-06-20T00:00:00Z', // NOT due (NOW is 2026-06-19)
+          terminal_unavailable: false,
+        },
+      ],
+    };
+    // A stale annotation so node_id sets would be equal at the gate — the exact
+    // shape that made the old "jobs==0 + sets equal" check falsely pass.
+    const annotations = [makeAnnotationFor(a, 'f'.repeat(64), { path: 'README.md', oid: 'stale' })];
+    const { manifest, decisions } = await plan({
+      repos: [a],
+      source: readmeSource([a]),
+      config,
+      state,
+      annotations,
+    });
+    expect(decisions.find((d) => d.node_id === 'R_a')?.bucket).toBe('skip-retry-pending');
+    expect(manifest.jobs).toHaveLength(0);
+    expect(manifest.plan_summary).toEqual({
+      eligible_new: 0,
+      eligible_retry: 0,
+      eligible_refresh: 0,
+      omitted_unfetchable: 0,
+      deferred_retry: 1,
+      empty_reason: 'deferred',
+    });
+  });
+});

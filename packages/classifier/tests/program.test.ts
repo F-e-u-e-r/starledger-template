@@ -227,3 +227,41 @@ describe('apply prune wiring (issue #213 round 1)', () => {
     expect(JSON.parse(metaBytes).dataset_sha256).toBe(datasetSha256);
   });
 });
+
+describe('plan disabled path (issue #207 — machine-readable empty_reason)', () => {
+  it('DISABLED-REASON: a disabled plan writes empty_reason=disabled (never drained-at-base)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'plan-disabled-'));
+    const { starsText, metaText } = makeDataset([repo('a')]);
+    writeFileSync(join(dir, 'stars.json'), starsText);
+    writeFileSync(join(dir, 'dataset-meta.json'), metaText);
+    // ai.enabled:false ⇒ the plan short-circuits with no README discovery.
+    writeFileSync(join(dir, 'ai.yaml'), 'ai:\n  enabled: false\n');
+    const outPath = join(dir, 'manifest.json');
+    const stdout = await runCliCapturingStdout([
+      'node',
+      'stars-classify',
+      '--config',
+      join(dir, 'ai.yaml'),
+      'plan',
+      '--out',
+      outPath,
+      '--stars',
+      join(dir, 'stars.json'),
+      '--meta',
+      join(dir, 'dataset-meta.json'),
+    ]);
+    expect(stdout).toContain('AI classification disabled');
+    const manifest = JSON.parse(readFileSync(outPath, 'utf8'));
+    expect(manifest.jobs).toEqual([]);
+    // The one empty_reason the planner never produces — the completion gate must
+    // reject it (no live discovery ran), so it must NOT be 'drained-at-base'.
+    expect(manifest.plan_summary.empty_reason).toBe('disabled');
+    expect(manifest.plan_summary).toMatchObject({
+      eligible_new: 0,
+      eligible_retry: 0,
+      eligible_refresh: 0,
+      omitted_unfetchable: 0,
+      deferred_retry: 0,
+    });
+  });
+});
