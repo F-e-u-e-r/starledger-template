@@ -108,6 +108,7 @@ export function buildProgram(): Command {
                 eligible_refresh: 0,
                 omitted_unfetchable: 0,
                 deferred_retry: 0,
+                deferred_terminal: 0,
                 empty_reason: 'disabled',
               },
             });

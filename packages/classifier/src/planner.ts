@@ -362,6 +362,16 @@ export async function planClassification(input: PlanInput): Promise<PlanResult> 
   // completion gate must not read their absence from eligible_* as a drained
   // backlog (issue #207 item 2). Counted so the gate can require it to be zero.
   const deferred_retry = decisions.filter((d) => d.bucket === 'skip-retry-pending').length;
+  // Repos skipped because prior state carries `terminal_unavailable` — also a SKIP
+  // bucket absent from eligible_*, also un-drained work (NOT a drained backlog).
+  // DORMANT: no runtime code originates `terminal_unavailable` (nextEntry only
+  // carries prior state forward; no circuit-breaker / terminal-quarantine writer
+  // exists — routine spec "Deferred follow-ups"), so this is 0 unless such state is
+  // seeded from outside this code (equally true of skip-retry-pending). Counted
+  // anyway so the completion gate carries a second explicit fail-closed assertion
+  // for the terminal residual, symmetric with deferred_retry, ready the day such a
+  // writer lands and before it can collapse into drained-at-base (issue #207 5b).
+  const deferred_terminal = decisions.filter((d) => d.bucket === 'skip-terminal').length;
   let empty_reason: PlanEmptyReason | null = null;
   if (jobs.length === 0) {
     // Exhaustive for an empty manifest. eligible work truncated by a 0 budget →
@@ -390,6 +400,7 @@ export async function planClassification(input: PlanInput): Promise<PlanResult> 
       eligible_refresh,
       omitted_unfetchable: omittedUnfetchable.length,
       deferred_retry,
+      deferred_terminal,
       empty_reason,
     },
   });

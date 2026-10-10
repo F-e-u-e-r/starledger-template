@@ -20,6 +20,7 @@ const DRAINED: PlanSummary = {
   eligible_refresh: 0,
   omitted_unfetchable: 0,
   deferred_retry: 0,
+  deferred_terminal: 0,
   empty_reason: 'drained-at-base',
 };
 
@@ -52,6 +53,7 @@ describe('ClassificationManifest — plan_summary diagnostics (issue #207)', () 
       'eligible_refresh',
       'omitted_unfetchable',
       'deferred_retry',
+      'deferred_terminal',
       'empty_reason',
     ];
     const positions = order.map((k) => text.indexOf(`"${k}"`));
@@ -98,6 +100,24 @@ describe('ClassificationManifest — plan_summary diagnostics (issue #207)', () 
     const valid = buildClassificationManifest({ ...BASE, jobs: [], planSummary: DRAINED });
     expect(() =>
       ClassificationManifestSchema.parse({ ...valid, plan_summary: { ...DRAINED, bogus: 1 } }),
+    ).toThrow();
+  });
+
+  it('requires deferred_terminal (a plan_summary missing it is rejected)', () => {
+    // #207 5b: deferred_terminal is a required count, symmetric with deferred_retry
+    // — a manifest predating it cannot prove the terminal residual is absent, so
+    // parsing must fail closed rather than default it in.
+    const valid = buildClassificationManifest({ ...BASE, jobs: [], planSummary: DRAINED });
+    const withoutTerminal = {
+      eligible_new: 0,
+      eligible_retry: 0,
+      eligible_refresh: 0,
+      omitted_unfetchable: 0,
+      deferred_retry: 0,
+      empty_reason: 'drained-at-base',
+    };
+    expect(() =>
+      ClassificationManifestSchema.parse({ ...valid, plan_summary: withoutTerminal }),
     ).toThrow();
   });
 

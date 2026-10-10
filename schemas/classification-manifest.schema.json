@@ -297,6 +297,10 @@
               "type": "integer",
               "minimum": 0
             },
+            "deferred_terminal": {
+              "type": "integer",
+              "minimum": 0
+            },
             "empty_reason": {
               "anyOf": [
                 {
@@ -321,6 +325,7 @@
             "eligible_refresh",
             "omitted_unfetchable",
             "deferred_retry",
+            "deferred_terminal",
             "empty_reason"
           ],
           "additionalProperties": false
