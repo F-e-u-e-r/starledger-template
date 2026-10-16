@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CanonicalRepo } from '@starred/schema';
-import { NoResults } from '../../components/states';
+import { NoClassifiedResults, NoResults } from '../../components/states';
 import type { AnnotationStatus, LoadedAnnotations } from '../../data/load-annotations';
 import type {
   LoadedSkillsClassification,
   SkillsClassificationStatus,
 } from '../../data/load-skills-classification';
-import type { Density } from '../../state/dashboard-state';
+import type { Density, GroupBy } from '../../state/dashboard-state';
 import type { DashboardStateControls } from '../../state/use-dashboard-state';
 import { activeFilterCount, FilterChips } from '../filters/FilterChips';
 import { FilterControls } from '../filters/FilterControls';
 import { FilterDrawer } from '../filters/FilterDrawer';
 import { defaultDirection, SORT_FIELDS, type SortField } from '../sorting/sorting';
+import { groupByPrimaryCategory } from './group';
 import { RepositoryCard } from './RepositoryCard';
 import {
   dashboardToView,
@@ -19,6 +20,7 @@ import {
   prepareRepositories,
   selectFromPrepared,
 } from './select';
+import { ContextExportPanel } from '../context/ContextExportPanel';
 
 const SORT_LABELS: Record<SortField, string> = {
   starred_at: 'Recently starred',
@@ -63,6 +65,33 @@ function resultSummary(count: number, total: number, query: string, filtered: bo
 }
 
 /**
+ * The grouped-mode result line (P7 §15.7, owner-pinned composition): the
+ * classified count and group count, then the query / filtered qualifiers, then
+ * the U1 disclosure of matching repos omitted for lack of a classification.
+ * `groupedCount` is never presented as the full result count.
+ */
+function groupedResultSummary(
+  groupedCount: number,
+  groupCount: number,
+  excludedCount: number,
+  query: string,
+  filtered: boolean,
+): string {
+  const q = query.trim();
+  let text =
+    `${groupedCount} classified ${groupedCount === 1 ? 'repository' : 'repositories'}` +
+    ` in ${groupCount} ${groupCount === 1 ? 'category' : 'categories'}`;
+  if (q) text += ` for "${q}"`;
+  if (filtered) text += ' · filtered';
+  if (excludedCount > 0) {
+    text +=
+      ` · ${excludedCount} matching ${excludedCount === 1 ? 'repository' : 'repositories'}` +
+      ` without Skills classification ${excludedCount === 1 ? 'is' : 'are'} not shown`;
+  }
+  return text;
+}
+
+/**
  * The full P1.3 dashboard: URL-synced canonical state, every facet control,
  * active-filter chips, a responsive card list and accessible result states.
  *
@@ -89,7 +118,8 @@ export function RepositoryView({
   datasetGeneratedAt?: string;
   initialNow?: Date;
   annotations?: LoadedAnnotations | null;
-  /** Lifecycle of the optional AI layer (P7 §2.2). Defaults from `annotations`. */
+  /** Lifecycle of the optional AI layer (P7 §2.2). Activation requires `'ready'`
+   *  AND data — data presence alone never activates (F4); omitted ⇒ not ready. */
   annotationStatus?: AnnotationStatus;
   /** The optional skills-classification layer (P7 §4.11). */
   skillsClassification?: LoadedSkillsClassification | null;
@@ -104,20 +134,34 @@ export function RepositoryView({
   const [sessionNow] = useState(() => initialNow ?? new Date());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const closeFilters = useCallback(() => setFiltersOpen(false), []);
+  // Context Builder export panel (P7 §19): local open state, opened from the
+  // results header; focus returns to its trigger on close.
+  const [contextOpen, setContextOpen] = useState(false);
+  const closeContext = useCallback(() => setContextOpen(false), []);
+  const copyContextRef = useRef<HTMLButtonElement>(null);
   const searchId = useId();
 
   const annotationsByNodeId = annotations?.byNodeId;
-  // The optional AI layer is usable only when `ready`; a missing status falls
-  // back to "ready iff annotations are present" so existing callers/tests behave.
-  const aiReady = annotationStatus ? annotationStatus === 'ready' : annotations != null;
+  // The optional AI layer is EFFECTIVE-READY only under a COHERENT ready shape —
+  // status `ready` AND data present (F4, P7 §4.11) — symmetric with `skillsReady`
+  // below; neither half alone activates. This closes the two fail-open mirrors the
+  // former M0 data-presence fallback left: a `ready` status without data would turn
+  // a requested AI filter into a match-nothing filter and silently zero results
+  // (F4-P1), and data under an omitted status would activate the layer from presence
+  // alone (F4-P2). App — the only producer — sets the (status, data) pair atomically,
+  // so real coherent-ready behavior is unchanged; only App-unreachable incoherent
+  // shapes change, and there only effective filtering is neutralized (the requested
+  // AI URL/filter state is retained for recoverability, exactly as when not ready).
+  const aiReady = annotationStatus === 'ready' && annotations != null;
   // Skills layer readiness (P7 §4.11, charter #2): activation requires a
   // COHERENT ready layer — status `ready` AND data. Neither half alone
   // activates: data without status never projects (pre-commit R1 F-A,
   // M24-STS-1), and a `ready` status without data would otherwise turn the
   // scope/facet into a match-nothing filter and zero the results with no
-  // degraded surface (pre-commit R2 sol, M24-STS-4). Deliberately STRICTER
-  // than the AI layer's data-presence fallback (an M0 decision preserving
-  // then-existing callers; this surface is new and has none). The join map is
+  // degraded surface (pre-commit R2 sol, M24-STS-4). Symmetric with the AI
+  // layer's coherent-ready gate above — F4 closed the AI layer's former M0
+  // data-presence fallback, so both gates are now identical in shape (this
+  // skills surface itself never had legacy callers). The join map is
   // passed only when ready, so a not-ready layer STRUCTURALLY cannot influence
   // badges or filtering — `repo.skills` is then null everywhere (M24-BDG-1).
   const skillsReady = skillsStatus === 'ready' && skillsClassification != null;
@@ -165,16 +209,43 @@ export function RepositoryView({
   // AI- and skills-dependent filters are applied only when their layer is ready
   // (P7 §2.2/§4.11): when not, they are neutralized so base repos are never
   // suppressed — results are never zeroed by an optional layer's absence.
-  const results = useMemo(
-    () => selectFromPrepared(prepared, dashboardToView(state, aiReady, skillsReady)),
-    [prepared, state, aiReady, skillsReady],
+  // The effective ViewState (fail-soft AI/skills gating) and the full filtered +
+  // ordered result set it produces — BEFORE pagination. The Context Builder panel
+  // exports this SAME `results`/`view`, so its exported set is the Browse set by
+  // construction (one filter-semantics source; no recomputation, no second clock).
+  const view = useMemo(
+    () => dashboardToView(state, aiReady, skillsReady),
+    [state, aiReady, skillsReady],
+  );
+  const results = useMemo(() => selectFromPrepared(prepared, view), [prepared, view]);
+
+  // Grouped presentation (P7 §15.3–15.5, M4.1): `state.group` is the REQUESTED
+  // value — retained in the URL and shown by the control — and is EFFECTIVE
+  // only under the same coherent-ready conjunction as the join map (§6.5
+  // fail-soft; never reconciled, it becomes valid when the layer loads). It is
+  // presentation-only: `results` above is the SAME effective set the flat list
+  // shows (`group` never enters `dashboardToView`), and grouping is a pure
+  // projection of it, computed only in grouped mode (`repo.skills` is non-null
+  // only under a ready join, so the projection is well-defined exactly then).
+  const effectiveGroup: GroupBy = state.group === 'skill' && skillsReady ? 'skill' : 'none';
+  const grouped = useMemo(
+    () =>
+      effectiveGroup === 'skill' && skillCategories
+        ? groupByPrimaryCategory(results, skillCategories)
+        : null,
+    [results, skillCategories, effectiveGroup],
   );
 
   // Pagination (§6.2): `state.page` is the REQUESTED page; the EFFECTIVE page is
   // clamped against the current result count. When they differ (e.g. a stale
   // bookmark `?page=999`), reconcile by rewriting the URL with the effective page
   // — `replace`, so no history entry is added — converging in a single step.
-  const lastPage = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  // Grouped mode renders the complete classified set on ONE page (§15.5, D1):
+  // no slicing and no pager, so a requested `page > 1` converges to 1 by the
+  // same rewrite. The >400 threshold is an owner re-entry trigger, never a
+  // runtime mode switch (D10).
+  const lastPage =
+    effectiveGroup === 'skill' ? 1 : Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const effectivePage = Math.min(Math.max(1, state.page), lastPage);
   useEffect(() => {
     if (state.page !== effectivePage) update({ page: effectivePage }, 'replace');
@@ -224,14 +295,33 @@ export function RepositoryView({
     : (state.scope !== 'all' ? 1 : 0) + state.skillCategories.length;
   const skillsFilterSuppressed = suppressedSkillsFilterCount > 0;
   const effectiveFilterCount = filterCount - suppressedAiFilterCount - suppressedSkillsFilterCount;
+  // Requested grouped mode while the layer is not ready (§15.6): the list stays
+  // flat and a separate notice explains why — independent of the skills FILTER
+  // notice above, so both can coexist. `group` is not a filter: it never enters
+  // `activeFilterCount`, the `Filters N` badge or "· filtered" (M41-CNT-1).
+  const groupRequestedButInert = state.group === 'skill' && effectiveGroup === 'none';
+  const clearFilters = () => {
+    reset();
+    focusResults();
+  };
+  // E-G offers "Clear filters" only while there is something to clear (§15.7).
+  const canClearFilters = effectiveFilterCount > 0 || state.query.trim() !== '';
 
   return (
     <main ref={mainRef} className={`dashboard density-${state.density}`}>
       <header className="dashboard-head">
         <div className="brand-row">
-          <div>
-            <h1>StarLedger</h1>
-            <p>Search, sort, and filter your GitHub stars.</p>
+          <div className="brand-identity">
+            {/* `>_` prompt mark — StarLedger joins the Portfolio product family.
+                Decorative (aria-hidden); the adjacent <h1> is the accessible name
+                (M3-ID-3). Muted emerald via `.brand-mark { color: var(--accent-muted) }`. */}
+            <span className="brand-mark" aria-hidden="true">
+              {'>_'}
+            </span>
+            <div>
+              <h1>StarLedger</h1>
+              <p>Search, sort, and filter your GitHub stars.</p>
+            </div>
           </div>
           <p className="dataset-status">
             {repos.length} starred repositories · {formatLastSynced(datasetGeneratedAt, sessionNow)}
@@ -310,6 +400,19 @@ export function RepositoryView({
             <option value="comfortable">Comfortable</option>
           </select>
         </label>
+        {/* Always reflects the REQUESTED group and is never disabled: while
+            the skills layer is not ready the choice stays in the link and
+            applies once it loads (§15.6/§15.8). */}
+        <label className="group">
+          <span>Group</span>
+          <select
+            value={state.group}
+            onChange={(e) => update({ group: e.target.value as GroupBy })}
+          >
+            <option value="none">None</option>
+            <option value="skill">Skill category</option>
+          </select>
+        </label>
       </div>
 
       <div className="layout">
@@ -324,14 +427,26 @@ export function RepositoryView({
         </aside>
 
         <section className="results" aria-labelledby="results-heading">
-          <h2
-            id="results-heading"
-            tabIndex={-1}
-            ref={resultsHeadingRef}
-            className="results-heading"
-          >
-            Starred repositories
-          </h2>
+          <div className="results-head">
+            <h2
+              id="results-heading"
+              tabIndex={-1}
+              ref={resultsHeadingRef}
+              className="results-heading"
+            >
+              Starred repositories
+            </h2>
+            {/* Context Builder (§19): export the current filtered set as portable
+                Markdown/JSON without leaving the Starred view. */}
+            <button
+              type="button"
+              className="copy-context-button"
+              ref={copyContextRef}
+              onClick={() => setContextOpen(true)}
+            >
+              Copy context
+            </button>
+          </div>
 
           <FilterChips
             state={state}
@@ -341,9 +456,34 @@ export function RepositoryView({
             skillCategoryLabels={skillCategoryLabels}
           />
 
+          {/* The grouped composition is pinned for "grouped, ready, ≥1 group"
+              (§15.7); the zero-result and grouped-empty states keep the flat
+              summary of the actual result set — their explanation lives in
+              `NoResults` / E-G, so nothing is said twice. */}
           <p className="result-count" role="status">
-            {resultSummary(results.length, repos.length, state.query, effectiveFilterCount > 0)}
+            {grouped && grouped.groups.length > 0
+              ? groupedResultSummary(
+                  grouped.groupedCount,
+                  grouped.groups.length,
+                  grouped.excludedCount,
+                  state.query,
+                  effectiveFilterCount > 0,
+                )
+              : resultSummary(results.length, repos.length, state.query, effectiveFilterCount > 0)}
           </p>
+          {/* U1 recovery (§15.7): the immediate sibling AFTER the summary and
+              OUTSIDE its live region, so the announced text stays the summary
+              alone. Only with ≥1 group — the grouped-empty state carries its
+              own button. */}
+          {grouped && grouped.groups.length > 0 && grouped.excludedCount > 0 ? (
+            <button
+              type="button"
+              className="show-as-list"
+              onClick={() => update({ group: 'none' })}
+            >
+              Show as list
+            </button>
+          ) : null}
 
           {aiFilterSuppressed ? (
             <p className="degraded-notice" role="status">
@@ -361,13 +501,56 @@ export function RepositoryView({
             </p>
           ) : null}
 
+          {groupRequestedButInert ? (
+            <p className="degraded-notice" role="status">
+              {skillsStatus === 'loading'
+                ? 'Skills classification is still loading — grouped view will apply once it’s ready. Showing the list view meanwhile.'
+                : 'Skills classification is unavailable, so grouped view isn’t applied and results are shown as a list. Group stays in your link and applies once the layer loads.'}
+            </p>
+          ) : null}
+
           {results.length === 0 ? (
-            <NoResults
-              onClearFilters={() => {
-                reset();
-                focusResults();
-              }}
-            />
+            // Unchanged regardless of `group` (§15.7): nothing matched at all.
+            <NoResults onClearFilters={clearFilters} />
+          ) : grouped ? (
+            grouped.groups.length === 0 ? (
+              // E-G: matches exist, none classified — nothing to group (§15.7).
+              <NoClassifiedResults
+                excludedCount={grouped.excludedCount}
+                onShowAsList={() => update({ group: 'none' })}
+                onClearFilters={canClearFilters ? clearFilters : undefined}
+              />
+            ) : (
+              // Grouped DOM (§15.8): h2 results → h3 group → h4 card. Every
+              // group renders its WHOLE membership (single page, §15.5); `{id}`
+              // is the taxonomy slug — unique per artifact, a valid DOM id.
+              <div className="result-groups">
+                {grouped.groups.map((group) => (
+                  <section
+                    key={group.id}
+                    className="result-group"
+                    aria-labelledby={`group-${group.id}`}
+                  >
+                    <h3 id={`group-${group.id}`} className="result-group-heading">
+                      {group.label}{' '}
+                      <span className="result-group-count">· {group.repos.length}</span>
+                    </h3>
+                    <ul className="card-list">
+                      {group.repos.map((repo) => (
+                        <RepositoryCard
+                          key={repo.node_id}
+                          repo={repo}
+                          now={sessionNow}
+                          selectedTopics={state.topics}
+                          skillCategoryLabels={skillCategoryLabels}
+                          headingLevel={4}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            )
           ) : (
             <>
               <ul className="card-list">
@@ -426,6 +609,17 @@ export function RepositoryView({
           skills={skillsFacetData}
         />
       </FilterDrawer>
+
+      <ContextExportPanel
+        open={contextOpen}
+        onClose={closeContext}
+        returnFocusRef={copyContextRef}
+        results={results}
+        view={view}
+        aiReady={aiReady}
+        starsSha256={starsSha256}
+        datasetGeneratedAt={datasetGeneratedAt}
+      />
     </main>
   );
 }

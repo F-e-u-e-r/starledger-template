@@ -1,13 +1,61 @@
+/* JetBrains Mono (SIL OFL-1.1) — self-hosted, same-origin (CSP font-src 'self').
+   Font files + the OFL licence live in public/fonts/ and ship verbatim; Vite
+   rewrites the root-absolute url() below with the project base, so they resolve
+   at /<repo>/fonts/... (e.g. /starledger/fonts/...). The licence travels with
+   the fonts (OFL §2). No <link rel=preload>; the metric-matched fallback face +
+   font-display:swap keep layout shift at zero. See public/fonts/JetBrainsMono-OFL.txt
+   and docs/brand-tokens.md. */
+@font-face {
+  font-family: 'JetBrains Mono Fallback';
+  src:
+    local('Menlo'), local('Menlo-Regular'), local('Courier New'), local('CourierNewPSMT'),
+    local('Liberation Mono'), local('LiberationMono');
+  size-adjust: 99.66%;
+  ascent-override: 102.35%;
+  descent-override: 30.1%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'JetBrains Mono Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url('/fonts/jetbrains-mono-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url('/fonts/jetbrains-mono-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
 :root {
+  /* StarLedger brand tokens — Portfolio-family (adapted). Light is the default;
+     the dark block below carries Portfolio's green-black surfaces. These are the
+     authoritative values; docs/brand-tokens.md mirrors them. */
   --bg: #ffffff;
   --fg: #1f2328;
-  --muted: #57606a;
-  --border: #d0d7de;
-  --accent: #0969da;
-  --surface: #f6f8fa;
-  --chip-bg: #eaeef2;
-  --focus: #0969da;
+  --muted: #51605a;
+  --border: rgba(20, 110, 75, 0.32);
+  --accent: #0f7355;
+  --accent-muted: #157856;
+  --accent-contrast: #ffffff;
+  --surface: #f6faf8;
+  --chip-bg: #ebf2ee;
+  --focus: #0f7355;
   --caution: #9a6700;
+  --font-sans: -apple-system, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono:
+    'JetBrains Mono Variable', 'JetBrains Mono Fallback', ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
   /* Fixed view-tabs height (M1.2c): the tabs bar is given this exact height so
      the sticky toolbar's `top` offset below it is correct by construction. */
   --view-tabs-h: 3rem;
@@ -16,14 +64,16 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d1117;
-    --fg: #e6edf3;
-    --muted: #9198a1;
-    --border: #30363d;
-    --accent: #4493f8;
-    --surface: #161b22;
-    --chip-bg: #21262d;
-    --focus: #4493f8;
+    --bg: #080b0a;
+    --fg: #e8efeb;
+    --muted: #9aa8a2;
+    --border: rgba(170, 205, 190, 0.22);
+    --accent: #35e0a1;
+    --accent-muted: #27a97c;
+    --accent-contrast: #04120c;
+    --surface: #111815;
+    --chip-bg: #16201c;
+    --focus: #35e0a1;
     --caution: #d29922;
   }
 }
@@ -36,18 +86,35 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font:
-    15px/1.5 -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
+  font: 15px/1.5 var(--font-sans);
 }
 
 a {
   color: var(--accent);
+}
+
+/* Native checkbox/radio ticks follow the emerald accent (they are UA-default
+   otherwise; the browser picks a contrasting glyph colour for the fill). */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
+}
+
+/* JetBrains Mono for technical / system-facing roles only — repository
+   identifiers, metrics, counts, metadata and tags — so the catalogue reads as
+   technical (Portfolio family) without making the whole UI monospaced. Prose
+   (descriptions, tagline), headings, and control labels stay in --font-sans. */
+.card-title,
+.star-count,
+.dataset-status,
+.repo-highlights,
+.topic,
+.ai-tag,
+.result-count,
+.insight-count,
+.context-size,
+.view-tab-count {
+  font-family: var(--font-mono);
 }
 
 /* Visible keyboard focus on every interactive element. */
@@ -98,6 +165,26 @@ a {
   color: var(--muted);
 }
 
+.brand-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* `>_` prompt mark (ADR-005): muted-emerald, mono, in a small bordered box. The
+   single accent binding on the identity (M3-ID-2); the wordmark inherits body --fg. */
+.brand-mark {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--accent-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.1rem 0.4rem;
+}
+
 .dataset-status {
   flex: 0 0 auto;
   text-align: right;
@@ -127,8 +214,9 @@ a {
   box-shadow: 0 2px 6px rgb(31 35 40 / 0.12);
 }
 
-/* When the view tabs render (discovery available), they stick above the
-   toolbar; the toolbar offsets below them by the tabs' fixed height. */
+/* When the view tabs render (always present once stars load — §6.4/§17.2, the
+   `Starred` + `Insights` tabs, plus `Discovery Inbox` when available), they stick
+   above the toolbar; the toolbar offsets below them by the tabs' fixed height. */
 :root:has(.view-tabs) .toolbar {
   top: var(--view-tabs-h);
 }
@@ -186,7 +274,8 @@ a {
 }
 
 .toolbar .sort,
-.toolbar .density {
+.toolbar .density,
+.toolbar .group {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -194,6 +283,7 @@ a {
 
 .toolbar button,
 .no-results button,
+.show-as-list,
 .chip,
 .chip-clear,
 .facet-more,
@@ -367,6 +457,31 @@ a {
   margin: 0.5rem 0;
 }
 
+/* Grouped presentation (P7 §15.8, M4.1): the U1 recovery button sits right
+   after the summary line; group sections stack with a taxonomy heading and a
+   whole-group count. Headings are NOT sticky and there is no jump index (D9). */
+.show-as-list {
+  margin: 0 0 0.6rem;
+}
+
+.result-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.result-group-heading {
+  font-size: 1rem;
+  margin: 0 0 0.6rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.result-group-count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 /* Degraded-state notice: an optional layer is unavailable, so a dependent filter
    is inactive (P7 §2.2). Caution border + explicit text carry the meaning; color
    is only reinforcement, per the badge rule. */
@@ -490,7 +605,7 @@ a {
 .card-skill-summary {
   margin: 0;
   padding-left: 0.5rem;
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--accent-muted);
   color: var(--muted);
   font-size: 0.86rem;
   overflow-wrap: anywhere;
@@ -529,8 +644,8 @@ a {
    short status badges these must WRAP inside the card instead of escaping it
    (PR #263 review F1) — containment only, the card layout is untouched. */
 .badge-skill {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--accent-muted);
+  border-color: var(--accent-muted);
   font-weight: 600;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -618,6 +733,11 @@ a {
 
 .no-results h3 {
   margin: 0 0 0.5rem;
+}
+
+/* The grouped-empty state (E-G) renders two actions side by side. */
+.no-results button + button {
+  margin-left: 0.5rem;
 }
 
 .drawer-backdrop {
@@ -710,12 +830,14 @@ a {
   }
 
   .toolbar .sort,
-  .toolbar .density {
+  .toolbar .density,
+  .toolbar .group {
     width: 100%;
   }
 
   .toolbar .sort select,
   .toolbar .density select,
+  .toolbar .group select,
   .toolbar button {
     width: 100%;
   }
@@ -729,7 +851,8 @@ a {
   }
 }
 
-/* --- View tabs (P5): switch between Starred and Discovery Inbox. --- */
+/* --- View tabs (P5; Insights added M4.3a §17): switch between Starred, Insights,
+   and (when available) Discovery Inbox. --- */
 /* Sticky above the toolbar (M1.2c): the explicit --view-tabs-h height makes
    the toolbar's top offset below the tabs correct by construction. */
 .view-tabs {
@@ -767,6 +890,24 @@ a {
   border-color: var(--border);
 }
 
+/* `← Portfolio` return link — neutral, compact, right-aligned in the view-tabs bar;
+   hover/focus promote it to the emerald accent. Does not grow the 3rem bar height. */
+.portfolio-link {
+  margin-left: auto;
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+  padding: 0.2rem 0.3rem;
+  white-space: nowrap;
+}
+
+.portfolio-link:hover,
+.portfolio-link:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 .view-tab-count {
   display: inline-flex;
   align-items: center;
@@ -784,7 +925,7 @@ a {
 
 .view-tab--active .view-tab-count {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
 }
 
 /* Narrow override for the tabs' stickiness (M1.2c). MUST come after the base
@@ -793,8 +934,13 @@ a {
    block this override silently loses and tabs stay stuck (round-1 xcheck
    finding, confirmed). Same rationale as the toolbar's narrow static rule. */
 @media (max-width: 520px) {
+  /* Static here (sticky is off below 520px), so the fixed 3rem height no longer
+     anchors the toolbar offset — let the bar wrap instead of overflowing when all
+     of Starred / Insights / Discovery Inbox plus the return link cannot fit. */
   .view-tabs {
     position: static;
+    flex-wrap: wrap;
+    height: auto;
   }
 }
 
@@ -829,7 +975,7 @@ a {
 }
 
 .discovery-card {
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--accent-muted);
 }
 
 .discovery-note {
@@ -853,8 +999,8 @@ a {
 }
 
 .badge-discovery-candidate {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--accent-muted);
+  border-color: var(--accent-muted);
 }
 
 .badge-discovery-promoted {
@@ -896,7 +1042,7 @@ a {
   gap: 0.4rem;
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--accent-muted);
   border-radius: 6px;
   background: var(--surface);
 }
@@ -909,8 +1055,8 @@ a {
 }
 
 .badge-ai {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--accent-muted);
+  border-color: var(--accent-muted);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -1001,4 +1147,264 @@ a {
 
 .density-compact .card-skill-summary {
   font-size: 0.82rem;
+}
+
+/* Insights view (P7 §17, M4.3a) — deterministic read-only insight cards. */
+.insights {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.insights-head h1 {
+  margin: 0 0 0.25rem;
+}
+
+.insights-head p {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+  max-width: 56rem;
+}
+
+.insight-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(24rem, 100%), 1fr));
+}
+
+.insight-card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  padding: 1rem 1.1rem 0.85rem;
+  block-size: 100%;
+}
+
+.insight-card-title {
+  font-size: 1rem;
+  margin: 0 0 0.6rem;
+}
+
+.insight-note,
+.insight-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+
+.insight-stat {
+  margin: 0.25rem 0 0;
+}
+
+.insight-stat strong {
+  font-size: 1.35rem;
+}
+
+.insight-degraded {
+  color: var(--caution);
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+}
+
+.insight-provenance {
+  margin: 0.85rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.insight-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.insight-table th[scope='col'] {
+  text-align: start;
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 0 0.5rem 0.3rem 0;
+}
+
+.insight-table th[scope='col']:last-child {
+  text-align: end;
+}
+
+.insight-table th[scope='row'] {
+  text-align: start;
+  font-weight: 400;
+  padding: 0.15rem 0.5rem 0.15rem 0;
+  white-space: nowrap;
+}
+
+.insight-table td {
+  padding: 0.15rem 0 0.15rem 0.5rem;
+  text-align: end;
+  white-space: nowrap;
+  /* Bar grows from the end so the count stays right-aligned and readable. */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.insight-bar {
+  display: inline-block;
+  block-size: 0.6rem;
+  min-inline-size: 1px;
+  background: var(--accent);
+  border-radius: 2px;
+  opacity: 0.55;
+}
+
+.insight-count {
+  min-inline-size: 2.5ch;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 520px) {
+  .insights {
+    padding: 1rem 0.75rem 2.5rem;
+  }
+}
+
+/* M4.4 Context Builder (§19) — the "Copy context" trigger in the results header
+   and a centered modal export panel. Reuses the dashboard tokens and the
+   .drawer-head chrome; its own backdrop is visible at every width (unlike the
+   mobile-only .drawer-backdrop). */
+.results-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.copy-context-button {
+  flex: none;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.copy-context-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.context-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.context-panel {
+  width: min(44rem, 100%);
+  max-height: min(90vh, 48rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 1rem 1.1rem 1.1rem;
+}
+
+.context-intro {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.context-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.context-format {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.context-format legend {
+  float: left;
+  margin-right: 0.6rem;
+  padding: 0;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.context-format label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.context-size {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.context-copy {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.context-copy:hover {
+  filter: brightness(1.05);
+}
+
+.context-copy-status {
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-height: 1.2em;
+}
+
+.context-preview {
+  inline-size: 100%;
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-block-size: 12rem;
+  resize: none;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre;
+  overflow: auto;
 }

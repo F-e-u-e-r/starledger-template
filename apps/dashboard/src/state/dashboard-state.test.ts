@@ -55,6 +55,7 @@ describe('dashboard-state codec', () => {
       categories: ['security', 'ai-ml'],
       aiTags: ['llm', 'cli'],
       skillCategories: ['verification-qa', 'design-ui'],
+      group: 'skill',
       archived: false,
       fork: true,
       stale: false,
@@ -68,8 +69,9 @@ describe('dashboard-state codec', () => {
     // (max-review round-2 finding 3: the F12 comment overclaimed while
     // categories/aiTags — and view/density/page — sat at defaults; the fixture
     // now backs the claim, so dropping ANY field's emission reddens this pin).
+    // 20 fields since M4.1 (`group`, §15.3 — emitted directly after `skill`).
     expect(serializeDashboardState(full)).toBe(
-      'view=discovery&scope=skills&skill=design-ui&skill=verification-qa' +
+      'view=discovery&scope=skills&skill=design-ui&skill=verification-qa&group=skill' +
         '&q=telegram+bot&sort=stargazer_count&direction=asc' +
         '&language=Go&language=TypeScript&topic=automation&topic=cli' +
         '&license=Apache-2.0&license=MIT' +
@@ -148,6 +150,15 @@ describe('dashboard-state codec — M1.1 fields (view/density/page + R1)', () =>
     expect(serializeDashboardState(state({ view: 'stars' }))).toBe('');
   });
 
+  it('M43-VIEW-INSIGHTS: view=insights round-trips (§17); still defaults to stars', () => {
+    expect(parse('view=insights').view).toBe('insights');
+    expect(serializeDashboardState(state({ view: 'insights' }))).toBe('view=insights');
+    // decode(encode(x)) === x for the new canonical value
+    expect(parse(serializeDashboardState(state({ view: 'insights' }))).view).toBe('insights');
+    // unchanged: an unknown view still falls back to the default
+    expect(parse('view=bogus').view).toBe('stars');
+  });
+
   it('M1-DENSITY: density round-trips; invalid → default compact; default omitted', () => {
     expect(parse('density=comfortable').density).toBe('comfortable');
     expect(parse('density=bogus').density).toBe('compact');
@@ -222,11 +233,12 @@ describe('dashboard-state codec — M1.1 fields (view/density/page + R1)', () =>
     expect(serializeDashboardState(s)).toBe('sort=name_with_owner'); // redundancy dropped
   });
 
-  it('ORDER: canonical emit order = view, scope, skill, q, sort, direction, facets, density, page (§4.11 amendment)', () => {
+  it('ORDER: canonical emit order = view, scope, skill, group, q, sort, direction, facets, density, page (§4.11 + §15.3 amendments)', () => {
     const full = state({
       view: 'discovery',
       scope: 'skills',
       skillCategories: ['verification-qa'],
+      group: 'skill',
       query: 'x',
       sort: 'stargazer_count',
       direction: 'asc',
@@ -235,9 +247,44 @@ describe('dashboard-state codec — M1.1 fields (view/density/page + R1)', () =>
       page: 3,
     });
     expect(serializeDashboardState(full)).toBe(
-      'view=discovery&scope=skills&skill=verification-qa' +
+      'view=discovery&scope=skills&skill=verification-qa&group=skill' +
         '&q=x&sort=stargazer_count&direction=asc&language=Go&density=comfortable&page=3',
     );
     expect(parse(serializeDashboardState(full))).toEqual(normalizeDashboardState(full));
+  });
+});
+
+describe('dashboard-state codec — M4.1 `group` (§15.3)', () => {
+  it('M41-URL-1: group round-trips; default omitted; invalid → none; repeated → last valid; emitted after skill, before q', () => {
+    // round-trip + default omitted
+    expect(parse('group=skill').group).toBe('skill');
+    expect(parse('').group).toBe('none');
+    expect(serializeDashboardState(state({ group: 'skill' }))).toBe('group=skill');
+    expect(serializeDashboardState(state({ group: 'none' }))).toBe('');
+    expect(parse(serializeDashboardState(state({ group: 'skill' })))).toEqual(
+      state({ group: 'skill' }),
+    );
+    // invalid → default `none` (like `view`: parse returns the default; a bogus
+    // token never becomes a third value), and normalize agrees
+    expect(parse('group=bogus').group).toBe('none');
+    expect(parse('group=category').group).toBe('none'); // `category` names the AI facet
+    expect(normalizeDashboardState({ ...state(), group: 'bogus' } as never).group).toBe('none');
+    expect(normalizeDashboardState(state({ group: 'skill' }))).toEqual(state({ group: 'skill' }));
+    // repeated scalar → last VALID (URL-4 rule)
+    expect(parse('group=none&group=skill').group).toBe('skill');
+    expect(parse('group=skill&group=none').group).toBe('none');
+    expect(parse('group=skill&group=bogus').group).toBe('skill');
+    // canonical position: directly after `skill`, before `q` — and a bookmark
+    // written in any other order re-serializes into it
+    const s = state({
+      scope: 'skills',
+      skillCategories: ['design-ui'],
+      group: 'skill',
+      query: 'x',
+    });
+    expect(serializeDashboardState(s)).toBe('scope=skills&skill=design-ui&group=skill&q=x');
+    expect(serializeDashboardState(parse('q=x&group=skill&skill=design-ui&scope=skills'))).toBe(
+      'scope=skills&skill=design-ui&group=skill&q=x',
+    );
   });
 });

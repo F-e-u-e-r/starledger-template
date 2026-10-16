@@ -50,6 +50,9 @@ importers:
       '@starred/discovery':
         specifier: workspace:*
         version: link:../../packages/discovery
+      '@starred/insights':
+        specifier: workspace:*
+        version: link:../../packages/insights
       '@starred/schema':
         specifier: workspace:*
         version: link:../../packages/schema
@@ -180,6 +183,8 @@ importers:
       '@octokit/rest':
         specifier: ^21.0.2
         version: 21.1.1
+
+  packages/insights: {}
 
   packages/notifier:
     dependencies:

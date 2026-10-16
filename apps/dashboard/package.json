@@ -12,6 +12,7 @@
   "dependencies": {
     "@starred/ai-schema": "workspace:*",
     "@starred/discovery": "workspace:*",
+    "@starred/insights": "workspace:*",
     "@starred/schema": "workspace:*",
     "@starred/skills-schema": "workspace:*",
     "react": "^18.3.1",

@@ -1,0 +1,217 @@
+{
+  "fixture": [
+    {
+      "starred_at": "2025-11-15T10:00:00Z",
+      "ai": {
+        "category": "ai-ml"
+      },
+      "skills": {},
+      "monthsSincePush": 21,
+      "isStale": true
+    },
+    {
+      "starred_at": "2025-11-20T10:00:00Z",
+      "ai": {
+        "category": "ai-ml"
+      },
+      "skills": null,
+      "monthsSincePush": 1,
+      "isStale": false
+    },
+    {
+      "starred_at": "2025-12-05T10:00:00Z",
+      "ai": {
+        "category": "developer-tools"
+      },
+      "skills": {},
+      "monthsSincePush": null,
+      "isStale": false
+    },
+    {
+      "starred_at": "2026-01-10T10:00:00Z",
+      "ai": {
+        "category": "ai-ml"
+      },
+      "skills": {},
+      "monthsSincePush": 39,
+      "isStale": true
+    },
+    {
+      "starred_at": "2026-01-25T10:00:00Z",
+      "ai": {
+        "category": "developer-tools"
+      },
+      "skills": null,
+      "monthsSincePush": 1.5,
+      "isStale": false
+    },
+    {
+      "starred_at": "2026-03-01T10:00:00Z",
+      "ai": {
+        "category": "media"
+      },
+      "skills": null,
+      "monthsSincePush": 20,
+      "isStale": true
+    },
+    {
+      "starred_at": "2026-03-15T10:00:00Z",
+      "ai": null,
+      "skills": {},
+      "monthsSincePush": 4,
+      "isStale": false
+    },
+    {
+      "starred_at": "2026-03-20T10:00:00Z",
+      "ai": null,
+      "skills": null,
+      "monthsSincePush": null,
+      "isStale": false
+    },
+    {
+      "starred_at": "2026-01-12T10:00:00Z",
+      "ai": {
+        "category": "aaa-cat"
+      },
+      "skills": null,
+      "monthsSincePush": 2,
+      "isStale": false
+    },
+    {
+      "starred_at": "2026-04-10T10:00:00",
+      "ai": null,
+      "skills": null,
+      "monthsSincePush": null,
+      "isStale": false
+    },
+    {
+      "starred_at": "2026-02-30T10:00:00Z",
+      "ai": null,
+      "skills": null,
+      "monthsSincePush": null,
+      "isStale": false
+    },
+    {
+      "starred_at": "10000-01-05T10:00:00Z",
+      "ai": null,
+      "skills": null,
+      "monthsSincePush": null,
+      "isStale": false
+    }
+  ],
+  "skillsSummary": {
+    "generatedAt": "2026-08-13T00:00:00Z",
+    "generatedAgainstStarsSha256": "old-snapshot-sha",
+    "coverage": {
+      "unresolved": 5
+    }
+  },
+  "generatedAt": "2026-09-01T00:00:00Z",
+  "currentStarsSha256": "live-snapshot-sha",
+  "expected": {
+    "pc": {
+      "provenance": {
+        "method": "Count of your stars in each AI category",
+        "sourceFields": ["ai.category"],
+        "formula": "group annotated repos by ai.category, count each"
+      },
+      "coverage": {
+        "n": 7,
+        "of": 12,
+        "layer": "ai",
+        "generatedAt": "2026-09-01T00:00:00Z"
+      },
+      "rows": [
+        {
+          "category": "ai-ml",
+          "count": 3
+        },
+        {
+          "category": "developer-tools",
+          "count": 2
+        },
+        {
+          "category": "aaa-cat",
+          "count": 1
+        },
+        {
+          "category": "media",
+          "count": 1
+        }
+      ]
+    },
+    "sa": {
+      "provenance": {
+        "method": "Count of the repos you currently hold, by the UTC month you starred them",
+        "sourceFields": ["starred_at"],
+        "formula": "group repos by starred_at UTC month (YYYY-MM), count each, zero-fill the span"
+      },
+      "coverage": {
+        "n": 9,
+        "of": 12,
+        "layer": "canonical"
+      },
+      "window": {
+        "field": "starred_at",
+        "from": "2025-11",
+        "to": "2026-03"
+      },
+      "buckets": [
+        {
+          "month": "2025-11",
+          "count": 2
+        },
+        {
+          "month": "2025-12",
+          "count": 1
+        },
+        {
+          "month": "2026-01",
+          "count": 3
+        },
+        {
+          "month": "2026-02",
+          "count": 0
+        },
+        {
+          "month": "2026-03",
+          "count": 3
+        }
+      ]
+    },
+    "st": {
+      "provenance": {
+        "method": "Stars whose upstream has not pushed in over 12 months",
+        "sourceFields": ["pushed_at"],
+        "formula": "count repos where isStale (pushed_at known and older than 12 months)"
+      },
+      "coverage": {
+        "n": 7,
+        "of": 12,
+        "layer": "canonical"
+      },
+      "staleCount": 3,
+      "unknownPushCount": 5,
+      "thresholdMonths": 12
+    },
+    "cc": {
+      "provenance": {
+        "method": "How many of your current stars are in the curated skills-ecosystem classification",
+        "sourceFields": ["skills"],
+        "formula": "count current repos carrying a classification record (live join)"
+      },
+      "coverage": {
+        "n": 4,
+        "of": 12,
+        "layer": "skills",
+        "generatedAt": "2026-08-13T00:00:00Z",
+        "generatedAgainstStarsSha256": "old-snapshot-sha",
+        "stale": true
+      },
+      "matched": 4,
+      "unresolved": 5,
+      "curatedSubset": true,
+      "stale": true
+    }
+  }
+}

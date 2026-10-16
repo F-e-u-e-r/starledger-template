@@ -15,6 +15,7 @@ import {
   loadStars,
 } from '../data/load-stars';
 import { DiscoveryInbox } from '../features/discovery/DiscoveryInbox';
+import { InsightsView } from '../features/insights/InsightsView';
 import { RepositoryView } from '../features/repositories/RepositoryView';
 import { useDashboardState } from '../state/use-dashboard-state';
 
@@ -99,12 +100,18 @@ export function App({
     };
   }, [loader, annotationsLoader, discoveryLoader]);
 
-  // `page` is meaningful only on a populated stars list. When the effective view
-  // is discovery, or the stars dataset is empty, RepositoryView is not mounted to
-  // reconcile the URL (§6.2), so canonicalize a stale page to 1 here. Guarded, so
-  // it is a no-op once the URL is already canonical.
+  // `page` is meaningful only on a populated stars list. When the effective view is
+  // discovery, or the stars dataset is empty, RepositoryView is not mounted to
+  // reconcile the URL (§6.2), so canonicalize a stale page to 1 here. The `insights`
+  // view (§17) PARKS the repo browse state (page included) preserved-but-inactive —
+  // even with zero stars — so it is excluded ENTIRELY: a bookmarked
+  // `?view=insights&page=5` keeps `page=5` in the URL WHILE Insights is active (it is
+  // never canonicalized here). Switching back to Starred is a `view` change, which
+  // resets `page → 1` under §6.3 — the parking keeps the value stable only while
+  // Insights is the active view. Guarded, so it is a no-op once the URL is canonical.
   useEffect(() => {
     if (state.status !== 'loaded') return;
+    if (controls.state.view === 'insights') return; // park: never canonicalize page in Insights
     const available = discovery != null && discovery.candidates.length > 0;
     const hasStarsSurface =
       !(controls.state.view === 'discovery' && available) && state.data.stars.repos.length > 0;
@@ -120,29 +127,53 @@ export function App({
   // the URL (it re-applies once discovery loads). Unlike `page`, it is not
   // rewritten — an unavailable substrate may become valid later.
   const discoveryAvailable = discovery != null && discovery.candidates.length > 0;
+  // `insights` (§17, M4.3a) is always available once stars load — it is a
+  // deterministic view of the SAME dataset, so it never falls back. `discovery`
+  // stays fail-soft (honored only when available). Neither is rewritten in the URL.
   const effectiveView =
-    controls.state.view === 'discovery' && discoveryAvailable ? 'discovery' : 'stars';
+    controls.state.view === 'insights'
+      ? 'insights'
+      : controls.state.view === 'discovery' && discoveryAvailable
+        ? 'discovery'
+        : 'stars';
   const starsEmpty = state.data.stars.repos.length === 0;
+  // `← Portfolio` return link (WS4-SL-B): opt-in via a build-time variable so the
+  // maintainer's portfolio URL NEVER ships into the generated starledger-template
+  // (the builder copies apps/** verbatim). The owner's Pages build passes
+  // VITE_PORTFOLIO_URL from an Actions repo variable; template-derived repos build
+  // without it and render no link. Absent/empty -> nothing renders.
+  const portfolioUrl =
+    (import.meta.env.VITE_PORTFOLIO_URL as string | undefined)?.trim() || undefined;
 
-  // Full-screen empty state ONLY when there is genuinely nothing to show. When
-  // discovery is available it stays reachable via the tabs even with zero stars
-  // (the empty state then renders inside the stars pane), so a bookmarked
-  // `?view=discovery` never dead-ends on EmptyState. The early return therefore
-  // runs AFTER view resolution, not before (§6.4).
-  if (starsEmpty && !discoveryAvailable) return <EmptyState />;
-
+  // The view-tabs nav is ALWAYS present once stars load (§6.4/§17.2 — Insights is a
+  // deterministic view that never falls back), so there is NO full-screen empty
+  // dead-end: an empty stars dataset renders `EmptyState` INSIDE the Starred pane
+  // below the tabs (as a bookmarked available-discovery view already does, F2),
+  // keeping Insights reachable by clicking. `Loading`/`ErrorState` above are the only
+  // full-screen returns.
   return (
     <>
-      {discovery && discovery.candidates.length > 0 ? (
-        <nav className="view-tabs" aria-label="Dashboard views">
-          <button
-            type="button"
-            className={`view-tab${effectiveView === 'stars' ? ' view-tab--active' : ''}`}
-            onClick={() => controls.update({ view: 'stars' })}
-            aria-current={effectiveView === 'stars' ? 'page' : undefined}
-          >
-            Starred
-          </button>
+      {/* View tabs are ALWAYS present: `Starred` and `Insights` (§17 — insights is
+          a deterministic view of the same dataset, always available), plus
+          `Discovery Inbox` only when discovery is available (fail-soft, §6.4). */}
+      <nav className="view-tabs" aria-label="Dashboard views">
+        <button
+          type="button"
+          className={`view-tab${effectiveView === 'stars' ? ' view-tab--active' : ''}`}
+          onClick={() => controls.update({ view: 'stars' })}
+          aria-current={effectiveView === 'stars' ? 'page' : undefined}
+        >
+          Starred
+        </button>
+        <button
+          type="button"
+          className={`view-tab${effectiveView === 'insights' ? ' view-tab--active' : ''}`}
+          onClick={() => controls.update({ view: 'insights' })}
+          aria-current={effectiveView === 'insights' ? 'page' : undefined}
+        >
+          Insights
+        </button>
+        {discovery && discovery.candidates.length > 0 ? (
           <button
             type="button"
             className={`view-tab${effectiveView === 'discovery' ? ' view-tab--active' : ''}`}
@@ -152,10 +183,29 @@ export function App({
             Discovery Inbox
             <span className="view-tab-count">{discovery.candidateCount}</span>
           </button>
-        </nav>
-      ) : null}
+        ) : null}
+        {portfolioUrl ? (
+          <a
+            className="portfolio-link"
+            href={portfolioUrl}
+            rel="noopener noreferrer"
+            aria-label="Return to Portfolio"
+          >
+            ← Portfolio
+          </a>
+        ) : null}
+      </nav>
 
-      {effectiveView === 'discovery' && discovery ? (
+      {effectiveView === 'insights' ? (
+        <InsightsView
+          repos={state.data.stars.repos}
+          annotations={annotations}
+          annotationStatus={annotationStatus}
+          skillsClassification={skills.data}
+          skillsStatus={skills.status}
+          starsSha256={state.data.meta.stars_sha256}
+        />
+      ) : effectiveView === 'discovery' && discovery ? (
         <DiscoveryInbox discovery={discovery} />
       ) : starsEmpty ? (
         <EmptyState />
