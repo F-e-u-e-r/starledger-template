@@ -133,9 +133,10 @@ describe('AI fail-soft filter contract (M0, P7 §2.2)', () => {
       aiTags: ['llm'],
       languages: ['Go'],
     };
-    // ready (default): AI filters pass through
-    expect(dashboardToView(state).filters.categories).toEqual(['security']);
-    expect(dashboardToView(state).filters.aiTags).toEqual(['llm']);
+    // ready (explicit `true`): AI filters pass through. Since F4 the default is
+    // fail-closed, so readiness must be stated — pinned by M42-F4-DEFAULT below.
+    expect(dashboardToView(state, true).filters.categories).toEqual(['security']);
+    expect(dashboardToView(state, true).filters.aiTags).toEqual(['llm']);
     // not ready: AI filters neutralized, non-AI filters preserved
     const notReady = dashboardToView(state, false);
     expect(notReady.filters.categories).toEqual([]);
@@ -151,5 +152,22 @@ describe('AI fail-soft filter contract (M0, P7 §2.2)', () => {
     expect(selectFromPrepared(prepared, dashboardToView(state, true))).toHaveLength(0);
     // unavailable: base entities preserved, never blanked (the shipped bug)
     expect(selectFromPrepared(prepared, dashboardToView(state, false))).toHaveLength(2);
+  });
+
+  it('M42-F4-DEFAULT: dashboardToView with aiReady unspecified is FAIL-CLOSED — a non-status-owning caller cannot activate AI filtering by default (F4; symmetric with skills M24-STS-3)', () => {
+    const state = {
+      ...DEFAULT_DASHBOARD_STATE,
+      categories: ['security'],
+      aiTags: ['llm'],
+      languages: ['Go'],
+    };
+    // omitted aiReady ⇒ AI facets neutralized (the sole production caller,
+    // RepositoryView, always passes an explicit status-derived value)…
+    const omitted = dashboardToView(state);
+    expect(omitted.filters.categories).toEqual([]);
+    expect(omitted.filters.aiTags).toEqual([]);
+    expect(omitted.filters.languages).toEqual(['Go']); // non-AI filters untouched
+    // …and only an explicit `true` activates them.
+    expect(dashboardToView(state, true).filters.categories).toEqual(['security']);
   });
 });

@@ -80,17 +80,24 @@ export function selectRepositories(
  * `?category=…` with no annotations would otherwise match nothing and blank the
  * dashboard). The URL value is untouched (it lives in `DashboardState`), so it is
  * retained for recoverability and re-applies once the layer loads. Defaults to
- * `true` so non-AI callers (tests, `selectRepositories`) are unaffected.
+ * `false` (fail-closed) since F4 (M4.2): the sole production caller
+ * (`RepositoryView`) always passes an explicit status-derived value, so a caller
+ * that does not own the AI status can never activate AI filtering by default —
+ * symmetric with `skillsReady`.
  *
  * `skillsReady` gates the skills-classification facets the same way (P7 §4.11,
  * M24-FS-1): when the layer is not `ready`, `scope`/`skillCategories` are
  * neutralized here — requested values stay in the URL, results are never zeroed
- * by the optional layer's absence. Unlike `aiReady`, it defaults to `false`
- * (fail-closed): the skills surface is new with no legacy callers to preserve,
+ * by the optional layer's absence. Like `aiReady` (since F4), it defaults to
+ * `false` (fail-closed): the skills surface is new with no legacy callers to preserve,
  * so activation always requires an explicit `true` from a status-owning caller
  * (charter #2; pre-commit R1 F-A, pinned by M24-STS-3).
  */
-export function dashboardToView(s: DashboardState, aiReady = true, skillsReady = false): ViewState {
+export function dashboardToView(
+  s: DashboardState,
+  aiReady = false,
+  skillsReady = false,
+): ViewState {
   return {
     query: s.query,
     sort: { field: s.sort, direction: s.direction },

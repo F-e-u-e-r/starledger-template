@@ -136,3 +136,85 @@ describe('useDashboardState — page reset semantics (§6.3)', () => {
     expect(window.location.search).toBe('?view=discovery&density=comfortable');
   });
 });
+
+function GroupHarness() {
+  const { state, update, reset } = useDashboardState();
+  return (
+    <div>
+      <span data-testid="page">{state.page}</span>
+      <span data-testid="group">{state.group}</span>
+      <span data-testid="scope">{state.scope}</span>
+      <span data-testid="skills">{state.skillCategories.join(',')}</span>
+      <button onClick={() => update({ page: 3 })}>goPage3</button>
+      <button onClick={() => update({ group: 'skill' })}>groupSkill</button>
+      <button onClick={() => update({ group: 'none' })}>groupNone</button>
+      <button onClick={() => update({ group: state.group })}>groupNoop</button>
+      <button onClick={() => update({ group: 'skill', page: 4 })}>groupAndPage</button>
+      <button onClick={() => update({ density: 'comfortable' })}>changeDensity</button>
+      <button onClick={() => update({ view: 'discovery' })}>toDiscovery</button>
+      <button onClick={() => update({ scope: 'skills', skillCategories: ['design-ui'] })}>
+        skillsFilters
+      </button>
+      <button onClick={() => update({ languages: ['Go'] })}>addGo</button>
+      <button onClick={() => reset()}>clearAll</button>
+    </div>
+  );
+}
+
+describe('useDashboardState — M4.1 `group` (§15.3 page reset + D4 clear-all)', () => {
+  const page = () => screen.getByTestId('page').textContent;
+  const group = () => screen.getByTestId('group').textContent;
+
+  it('M41-RST-1: a genuine group change resets page → 1; a no-op does not; explicit page wins', () => {
+    render(<GroupHarness />);
+    fireEvent.click(screen.getByText('goPage3'));
+    expect(page()).toBe('3');
+    fireEvent.click(screen.getByText('groupNoop')); // same value: key presence alone never resets
+    expect(page()).toBe('3');
+    fireEvent.click(screen.getByText('groupSkill')); // none → skill: semantic change
+    expect(page()).toBe('1');
+    expect(group()).toBe('skill');
+    expect(window.location.search).toBe('?group=skill'); // page dropped, group emitted
+    fireEvent.click(screen.getByText('goPage3'));
+    fireEvent.click(screen.getByText('groupNone')); // skill → none: also a semantic change
+    expect(page()).toBe('1');
+    expect(window.location.search).toBe('');
+    fireEvent.click(screen.getByText('groupAndPage')); // explicit page in the same update wins
+    expect(page()).toBe('4');
+    expect(window.location.search).toBe('?group=skill&page=4');
+  });
+
+  it('M41-RST-1: reset() preserves group (with view + density) and clears scope / skill facets', () => {
+    render(<GroupHarness />);
+    fireEvent.click(screen.getByText('toDiscovery'));
+    fireEvent.click(screen.getByText('changeDensity'));
+    fireEvent.click(screen.getByText('groupSkill'));
+    fireEvent.click(screen.getByText('skillsFilters'));
+    fireEvent.click(screen.getByText('addGo'));
+    expect(window.location.search).toBe(
+      '?view=discovery&scope=skills&skill=design-ui&group=skill&language=Go&density=comfortable',
+    );
+    fireEvent.click(screen.getByText('clearAll'));
+    expect(group()).toBe('skill'); // a presentation preference, not a filter (D4)
+    expect(screen.getByTestId('scope').textContent).toBe('all'); // filters cleared
+    expect(screen.getByTestId('skills').textContent).toBe('');
+    expect(window.location.search).toBe('?view=discovery&group=skill&density=comfortable');
+  });
+
+  it('M41-RST-1: popstate restores group from the URL (back/forward)', () => {
+    render(<GroupHarness />);
+    fireEvent.click(screen.getByText('groupSkill'));
+    expect(group()).toBe('skill');
+    act(() => {
+      window.history.replaceState(null, '', '/');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(group()).toBe('none');
+    act(() => {
+      window.history.replaceState(null, '', '/?group=skill&page=2');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(group()).toBe('skill');
+    expect(page()).toBe('2'); // requested page is restored as-is; the view reconciles it (§15.5)
+  });
+});

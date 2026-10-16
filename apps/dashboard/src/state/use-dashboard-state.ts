@@ -13,7 +13,9 @@ export type HistoryMode = 'push' | 'replace';
 /**
  * Fields whose semantic change resets `page → 1` (§6.3). `density` and `page`
  * itself are intentionally absent: density never resets, and an explicit page is
- * handled separately. `scope`/`skillCategories` joined with M2.4 (§4.11).
+ * handled separately. `scope`/`skillCategories` joined with M2.4 (§4.11);
+ * `group` joined with M4.1 (§15.3) — grouped mode is single-page (§15.5), and
+ * leaving it starts the flat list at page 1.
  */
 const PAGE_RESET_FIELDS: readonly (keyof DashboardState)[] = [
   'view',
@@ -27,6 +29,7 @@ const PAGE_RESET_FIELDS: readonly (keyof DashboardState)[] = [
   'categories',
   'aiTags',
   'skillCategories',
+  'group',
   'archived',
   'fork',
   'stale',
@@ -113,13 +116,15 @@ export function useDashboardState(): DashboardStateControls {
   const reset = useCallback(
     (mode: HistoryMode = 'push') =>
       // "Clear all" clears the query axis (search / sort / filters) and returns to
-      // page 1, but PRESERVES the user's `view` (active tab) and `density` (display
-      // preference): a filter clear-all must not discard navigation/display choices.
+      // page 1, but PRESERVES the user's `view` (active tab), `density` (display
+      // preference) and `group` (grouped presentation, §15.3 D4 — not a filter):
+      // a filter clear-all must not discard navigation/display choices.
       set(
         {
           ...DEFAULT_DASHBOARD_STATE,
           view: stateRef.current.view,
           density: stateRef.current.density,
+          group: stateRef.current.group,
         },
         mode,
       ),

@@ -12,8 +12,15 @@ export type HydrationStatus = CanonicalRepo['hydration_status'];
 /** Tri-state facet: `null` = "all" (no constraint); `true`/`false` = yes/no. */
 export type BooleanFilter = boolean | null;
 
-/** Active top-level tab. `discovery` is fail-soft: honored only when available (§6.4). */
-export type DashboardView = 'stars' | 'discovery';
+/**
+ * Active top-level tab. `discovery` is fail-soft: honored only when available
+ * (§6.4). `insights` (P7 §17, M4.3a) is a deterministic read-only view of the
+ * SAME loaded stars dataset — always available once stars load (it derives from
+ * them), so unlike `discovery` it never falls back. While it is active the repo
+ * browse state (query / filters / sort / group / scope) is PRESERVED in the URL
+ * but INACTIVE (RepositoryView is not mounted), re-applying on return to `stars`.
+ */
+export type DashboardView = 'stars' | 'discovery' | 'insights';
 
 /**
  * Skills-ecosystem scope (P7 §4.11): `all` = no constraint; `skills` = only
@@ -26,6 +33,15 @@ export type SkillsScopeValue = 'all' | 'skills';
 
 /** Row density. `compact` is the default (P7 §3, M1). Visual treatment lands in M1.2. */
 export type Density = 'comfortable' | 'compact';
+
+/**
+ * Grouped presentation of the results (P7 §15.3, M4.1): `none` = the flat list;
+ * `skill` = partitioned by primary skill category (the same noun as the `skill`
+ * facet param — `category` is deliberately NOT used, it names the AI facet).
+ * Presentation-only: it never enters the selector (§15.3) and is fail-soft
+ * like `view` — requested in the URL, effective only under a ready layer (§6.5).
+ */
+export type GroupBy = 'none' | 'skill';
 
 /**
  * The single canonical dashboard state. React controls, URL encoding and URL
@@ -49,6 +65,9 @@ export interface DashboardState {
    * other data-dependent array facet — valid bookmarks until the taxonomy
    * changes — never validated against loaded data at decode time. */
   skillCategories: string[];
+  /** REQUESTED grouped presentation (§15.3). Effective only when the skills
+   * layer is coherent-ready; never rewritten while it is not (§6.5). */
+  group: GroupBy;
 
   archived: BooleanFilter;
   fork: BooleanFilter;
@@ -76,6 +95,7 @@ export const DEFAULT_DASHBOARD_STATE: DashboardState = {
   categories: [],
   aiTags: [],
   skillCategories: [],
+  group: 'none',
   archived: null,
   fork: null,
   stale: null,
@@ -89,9 +109,10 @@ export const DEFAULT_DASHBOARD_STATE: DashboardState = {
 // Canonical value sets for enum facets. `satisfies` ties them to the source
 // unions so a renamed/added variant fails the build here, not silently at runtime.
 const DIRECTIONS = ['asc', 'desc'] as const satisfies readonly SortDirection[];
-const VIEW_VALUES = ['stars', 'discovery'] as const satisfies readonly DashboardView[];
+const VIEW_VALUES = ['stars', 'discovery', 'insights'] as const satisfies readonly DashboardView[];
 const SCOPE_VALUES = ['all', 'skills'] as const satisfies readonly SkillsScopeValue[];
 const DENSITY_VALUES = ['comfortable', 'compact'] as const satisfies readonly Density[];
+const GROUP_VALUES = ['none', 'skill'] as const satisfies readonly GroupBy[];
 const RELEASE_VALUES = [
   'has',
   'none',
@@ -105,6 +126,7 @@ const PARAM = {
   view: 'view',
   scope: 'scope',
   skillCategories: 'skill',
+  group: 'group',
   query: 'q',
   sort: 'sort',
   direction: 'direction',
@@ -189,6 +211,7 @@ export function normalizeDashboardState(state: DashboardState): DashboardState {
     categories: canonicalStrings(state.categories),
     aiTags: canonicalStrings(state.aiTags),
     skillCategories: canonicalStrings(state.skillCategories),
+    group: GROUP_VALUES.includes(state.group) ? state.group : DEFAULT_DASHBOARD_STATE.group,
     archived: state.archived,
     fork: state.fork,
     stale: state.stale,
@@ -212,6 +235,8 @@ const asScope = (v: string): SkillsScopeValue | undefined =>
   (SCOPE_VALUES as readonly string[]).includes(v) ? (v as SkillsScopeValue) : undefined;
 const asDensity = (v: string): Density | undefined =>
   (DENSITY_VALUES as readonly string[]).includes(v) ? (v as Density) : undefined;
+const asGroup = (v: string): GroupBy | undefined =>
+  (GROUP_VALUES as readonly string[]).includes(v) ? (v as GroupBy) : undefined;
 /** A positive-integer page token; rejects `0`, negatives, decimals and junk. */
 const asPage = (v: string): number | undefined =>
   /^\d+$/.test(v) && Number(v) >= 1 ? Number(v) : undefined;
@@ -239,6 +264,7 @@ export function parseDashboardState(params: URLSearchParams): DashboardState {
     categories: params.getAll(PARAM.categories),
     aiTags: params.getAll(PARAM.aiTags),
     skillCategories: params.getAll(PARAM.skillCategories),
+    group: lastValid(params.getAll(PARAM.group), asGroup) ?? DEFAULT_DASHBOARD_STATE.group,
     archived: parseBooleanFilter(params.getAll(PARAM.archived)),
     fork: parseBooleanFilter(params.getAll(PARAM.fork)),
     stale: parseBooleanFilter(params.getAll(PARAM.stale)),
@@ -257,10 +283,10 @@ function appendBoolean(params: URLSearchParams, key: string, value: BooleanFilte
 /**
  * Encode a DashboardState into a canonical query string (no leading `?`).
  * Defaults are omitted, array facets are deduplicated + sorted, and parameters
- * are emitted in a fixed order (§6/§4.11: view, scope, skill, q, sort,
- * direction, facets, booleans, release/hydration, density, page), so equivalent
- * states always produce a byte-identical string. The default state serializes
- * to `''`.
+ * are emitted in a fixed order (§6/§4.11/§15.3: view, scope, skill, group, q,
+ * sort, direction, facets, booleans, release/hydration, density, page), so
+ * equivalent states always produce a byte-identical string. The default state
+ * serializes to `''`.
  *
  * `sort` and `direction` are INDEPENDENT (R1, §6.1): `sort` is emitted when it is
  * non-default; `direction` is emitted only when it differs from
@@ -276,6 +302,8 @@ export function serializeDashboardState(state: DashboardState): string {
   // §4.11 emit-order amendment: `scope`, then `skill`, directly after `view`.
   if (s.scope !== DEFAULT_DASHBOARD_STATE.scope) params.set(PARAM.scope, s.scope);
   for (const v of s.skillCategories) params.append(PARAM.skillCategories, v);
+  // §15.3 emit-order amendment: `group` directly after `skill`, before `q`.
+  if (s.group !== DEFAULT_DASHBOARD_STATE.group) params.set(PARAM.group, s.group);
 
   if (s.query !== DEFAULT_DASHBOARD_STATE.query) params.set(PARAM.query, s.query);
 

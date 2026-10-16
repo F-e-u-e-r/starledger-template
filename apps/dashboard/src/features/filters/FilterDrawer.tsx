@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { useBodyScrollLock } from '../../components/use-body-scroll-lock';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -26,6 +27,8 @@ export function FilterDrawer({
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  // Reference-counted so a nested Context panel cannot leak the lock (r3).
+  useBodyScrollLock(open);
 
   // Effect runs only on the open↔closed transition: `onClose` is stabilized by
   // the caller, so interacting with a control inside the drawer never re-runs it
@@ -35,8 +38,6 @@ export function FilterDrawer({
     const dialog = dialogRef.current;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     dialog?.focus();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -66,7 +67,6 @@ export function FilterDrawer({
     document.addEventListener('keydown', handleKeyDown, true);
     return () => {
       document.removeEventListener('keydown', handleKeyDown, true);
-      document.body.style.overflow = previousOverflow;
       (returnFocusRef?.current ?? previouslyFocused)?.focus();
     };
   }, [open, onClose, returnFocusRef]);

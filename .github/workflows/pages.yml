@@ -72,6 +72,13 @@ jobs:
 
       # Vite derives the Pages base path from GITHUB_REPOSITORY at build time.
       - name: build dashboard
+        # VITE_PORTFOLIO_URL (optional repo variable `PORTFOLIO_URL`) turns on the
+        # "← Portfolio" return link on the owner's deployment. It is deliberately NOT
+        # hardcoded in source: the variable lives only in this repo's settings, so
+        # starledger-template-derived repos build without it and never inherit the
+        # maintainer's portfolio URL (WS4-SL-B / ADR-005).
+        env:
+          VITE_PORTFOLIO_URL: ${{ vars.PORTFOLIO_URL }}
         run: pnpm --filter @starred/dashboard build
 
       - name: stage + verify the canonical dataset into the artifact

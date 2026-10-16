@@ -1,4 +1,5 @@
 import type { CanonicalRepo } from '@starred/schema';
+import { STALE_MONTHS, deriveStaleness } from '@starred/insights';
 import type { RepoAnnotation } from './load-annotations';
 import type { RepoSkillsClassification } from './load-skills-classification';
 
@@ -26,8 +27,13 @@ export interface DerivedRepo extends CanonicalRepo {
   skills: RepoSkillsClassification | null;
 }
 
-export const STALE_MONTHS = 12;
-const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.44;
+/**
+ * Re-exported from `@starred/insights` — the SINGLE source of the staleness
+ * threshold and formula (M4.3b.1 shared core). Existing `from './derive-fields'`
+ * importers keep resolving `STALE_MONTHS`; the dashboard and a future MCP server
+ * now share one definition of "stale" (M4.3a's exact-reuse invariant).
+ */
+export { STALE_MONTHS };
 
 function availability(
   repo: CanonicalRepo,
@@ -43,15 +49,17 @@ export function deriveRepo(
   annotation: RepoAnnotation | null = null,
   skillsClassification: RepoSkillsClassification | null = null,
 ): DerivedRepo {
+  // Resolve "unavailable / absent" to null, then derive staleness against the
+  // explicit `now` via the shared primitive (no second staleness formula).
   const pushKnown = !repo.unavailable_fields.includes('pushed_at') && repo.pushed_at !== null;
-  const monthsSincePush = pushKnown
-    ? (now.getTime() - new Date(repo.pushed_at as string).getTime()) / MS_PER_MONTH
-    : null;
+  const { monthsSincePush, isStale } = deriveStaleness(
+    pushKnown ? (repo.pushed_at as string) : null,
+    now,
+  );
   return {
     ...repo,
     monthsSincePush,
-    // An unknown push date is NOT stale (matches the unknown-vs-absent rule).
-    isStale: monthsSincePush !== null && monthsSincePush > STALE_MONTHS,
+    isStale,
     stableRelease: availability(repo, 'latest_stable_release'),
     anyRelease: availability(repo, 'latest_any_release'),
     ai: annotation,

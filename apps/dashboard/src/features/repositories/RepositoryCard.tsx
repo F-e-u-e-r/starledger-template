@@ -77,6 +77,7 @@ export function RepositoryCard({
   now = new Date(),
   selectedTopics = [],
   skillCategoryLabels,
+  headingLevel = 3,
 }: {
   repo: DerivedRepo;
   now?: Date;
@@ -88,8 +89,12 @@ export function RepositoryCard({
    *  layer is not ready — `repo.skills` is then also absent, so no badge can
    *  render with a missing label; the id slug is the defensive fallback only. */
   skillCategoryLabels?: ReadonlyMap<string, string>;
+  /** Title heading level (P7 §15.8): `3` in the flat list (h2 results → h3
+   *  card, unchanged); `4` under a grouped `h3` category heading. */
+  headingLevel?: 3 | 4;
 }) {
   const [topicsExpanded, setTopicsExpanded] = useState(false);
+  const TitleHeading = headingLevel === 4 ? 'h4' : 'h3';
   const starred = fmtMonthYear(repo.starred_at);
   const pushed = unavailable(repo, 'pushed_at')
     ? UNKNOWN
@@ -129,9 +134,9 @@ export function RepositoryCard({
     <li className="card">
       <div className="card-top">
         <div className="card-identity">
-          <h3 className="card-title">
+          <TitleHeading className="card-title">
             <a href={repo.url}>{repo.name_with_owner}</a>
-          </h3>
+          </TitleHeading>
           <span className="badges">
             {repo.is_archived === true ? (
               <span className="badge badge-archived">Archived</span>

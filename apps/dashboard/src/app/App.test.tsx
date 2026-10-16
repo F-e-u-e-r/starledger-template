@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LoadedDiscovery } from '../data/load-discovery';
 import { DataLoadError } from '../data/load-stars';
@@ -55,9 +55,14 @@ describe('App state machine', () => {
     expect(screen.getByText('1 of 1 repositories')).toBeTruthy();
   });
 
-  it('EMPTY-1: shows an empty state for zero repos (not an error)', async () => {
+  it('EMPTY-1: zero repos shows the empty state IN-PANE with the tabs present — Insights stays reachable (§17)', async () => {
     render(<App loader={async () => makeDataset([])} />);
     await waitFor(() => expect(screen.getByText('No starred repositories yet.')).toBeTruthy());
+    // §6.4/§17.2: the view-tabs nav is ALWAYS present once stars load — no full-screen
+    // dead-end — so Insights is reachable even from an empty account.
+    const nav = screen.getByRole('navigation', { name: 'Dashboard views' });
+    expect(within(nav).getByRole('button', { name: 'Starred' })).toBeTruthy();
+    expect(within(nav).getByRole('button', { name: 'Insights' })).toBeTruthy();
   });
 
   it('DATA-3: an integrity failure renders an error and no repositories', async () => {
@@ -80,9 +85,14 @@ describe('App state machine', () => {
         discoveryLoader={async () => null}
       />,
     );
-    // effective view falls back to stars (the substrate is unavailable)
+    // effective view falls back to stars (the discovery substrate is unavailable)
     await waitFor(() => expect(screen.getByText('a/one')).toBeTruthy());
-    expect(screen.queryByRole('navigation', { name: 'Dashboard views' })).toBeNull();
+    // §17: the view-tabs nav is now ALWAYS present (Insights is always a tab).
+    // Discovery is unavailable ⇒ its tab is absent; Starred + Insights remain.
+    const nav = screen.getByRole('navigation', { name: 'Dashboard views' });
+    expect(within(nav).getByRole('button', { name: 'Starred' })).toBeTruthy();
+    expect(within(nav).getByRole('button', { name: 'Insights' })).toBeTruthy();
+    expect(within(nav).queryByRole('button', { name: /Discovery Inbox/ })).toBeNull();
     // the requested value is retained in the URL for recovery (not rewritten)
     expect(window.location.search).toBe('?view=discovery');
   });
@@ -132,6 +142,112 @@ describe('App state machine', () => {
       expect(screen.getByRole('heading', { name: 'Discovery Inbox' })).toBeTruthy(),
     );
     await waitFor(() => expect(window.location.search).toBe('?view=discovery'));
+  });
+
+  it('INSIGHTS-1 (§17): view=insights renders the Insights view; the Starred + Insights tabs are always present', async () => {
+    window.history.replaceState(null, '', '/?view=insights');
+    render(
+      <App
+        loader={async () =>
+          makeDataset([
+            makeRepo({
+              node_id: 'R_1',
+              name_with_owner: 'a/one',
+              starred_at: '2026-03-01T00:00:00Z',
+            }),
+          ])
+        }
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Insights' })).toBeTruthy(),
+    );
+    const nav = screen.getByRole('navigation', { name: 'Dashboard views' });
+    expect(within(nav).getByRole('button', { name: 'Starred' })).toBeTruthy();
+    expect(within(nav).getByRole('button', { name: 'Insights' })).toBeTruthy();
+    // the four deterministic insight cards render
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(4);
+    // RepositoryView is NOT mounted — the repo browse surface is inactive here
+    expect(screen.queryByRole('searchbox', { name: 'Search repositories' })).toBeNull();
+  });
+
+  it('INSIGHTS-2 (§17): the repo browse state is PRESERVED-BUT-INACTIVE in Insights and re-applies on return to Starred', async () => {
+    window.history.replaceState(null, '', '/?view=insights&q=telegram&language=Go');
+    render(
+      <App
+        loader={async () =>
+          makeDataset([
+            makeRepo({
+              node_id: 'R_1',
+              name_with_owner: 'a/telegram',
+              primary_language: 'Go',
+              starred_at: '2026-03-01T00:00:00Z',
+            }),
+            makeRepo({
+              node_id: 'R_2',
+              name_with_owner: 'a/other',
+              primary_language: 'Rust',
+              starred_at: '2026-03-02T00:00:00Z',
+            }),
+          ])
+        }
+      />,
+    );
+    // Insights active; RepositoryView not mounted ⇒ the browse state is inactive…
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Insights' })).toBeTruthy(),
+    );
+    expect(screen.queryByRole('searchbox', { name: 'Search repositories' })).toBeNull();
+    // …but PRESERVED in the URL (never stripped or rewritten while parked).
+    expect(window.location.search).toContain('q=telegram');
+    expect(window.location.search).toContain('language=Go');
+
+    // Returning to Starred re-applies the parked browse state (now ACTIVE).
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Dashboard views' })).getByRole('button', {
+        name: 'Starred',
+      }),
+    );
+    const search = screen.getByRole('searchbox', { name: 'Search repositories' });
+    expect((search as HTMLInputElement).value).toBe('telegram');
+    // the Go + telegram repo is the active result; the URL keeps the browse params
+    expect(screen.getByRole('link', { name: 'a/telegram' })).toBeTruthy();
+    expect(window.location.search).toContain('q=telegram');
+    expect(window.location.search).toContain('language=Go');
+    expect(window.location.search).not.toContain('view=insights');
+  });
+
+  it('INSIGHTS-3 (§17): empty stars with discovery unavailable still reaches Insights (always-available), not a dead-end EmptyState', async () => {
+    window.history.replaceState(null, '', '/?view=insights');
+    render(<App loader={async () => makeDataset([])} discoveryLoader={async () => null} />);
+    // insights is effective even with zero stars — NOT the full-screen empty state
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Insights' })).toBeTruthy(),
+    );
+    expect(screen.queryByText('No starred repositories yet.')).toBeNull();
+    const nav = screen.getByRole('navigation', { name: 'Dashboard views' });
+    expect(within(nav).getByRole('button', { name: 'Insights' })).toBeTruthy();
+    expect(screen.getByText(/0 starred repositories/)).toBeTruthy(); // zero-state, not a dead end
+    // returning to Starred shows the empty state IN-PANE with the tabs still present
+    // (the nav never disappears — Insights stays reachable), §17:
+    fireEvent.click(within(nav).getByRole('button', { name: 'Starred' }));
+    expect(screen.getByText('No starred repositories yet.')).toBeTruthy();
+    expect(
+      within(screen.getByRole('navigation', { name: 'Dashboard views' })).getByRole('button', {
+        name: 'Insights',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('INSIGHTS-4 (§17): a bookmarked ?view=insights&page=5 with empty stars PARKS the page (not canonicalized to 1)', async () => {
+    window.history.replaceState(null, '', '/?view=insights&page=5');
+    render(<App loader={async () => makeDataset([])} discoveryLoader={async () => null} />);
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Insights' })).toBeTruthy(),
+    );
+    // page is preserved-but-inactive while Insights is active, even with zero stars
+    expect(window.location.search).toContain('page=5');
+    expect(window.location.search).toContain('view=insights');
   });
 });
 
@@ -379,5 +495,37 @@ describe('App production default path', () => {
     expect(requested).toContain(`${BASE}discovery-candidates.json?sha=${DISC_SHA}`);
     expect(requested).toContain(`${BASE}skills-classification-meta.json`);
     expect(requested).toContain(`${BASE}skills-classification.json?sha=${SKILLS_SHA}`);
+  });
+});
+
+describe('App ← Portfolio return link (WS4-SL-B)', () => {
+  const loader = async () => makeDataset([makeRepo({ node_id: 'R_pf', name_with_owner: 'a/one' })]);
+
+  it('renders a neutral ← Portfolio link ONLY when VITE_PORTFOLIO_URL is set (opt-in, template-safe)', async () => {
+    vi.stubEnv('VITE_PORTFOLIO_URL', 'https://portfolio.example/');
+    render(<App loader={loader} />);
+    await waitFor(() => expect(screen.getByText('a/one')).toBeTruthy());
+    try {
+      const link = screen.getByRole('link', { name: 'Return to Portfolio' });
+      expect(link.getAttribute('href')).toBe('https://portfolio.example/');
+      expect(link.getAttribute('rel')).toContain('noopener');
+      // A neutral utility link, not a dashboard view tab.
+      expect(link.className).toContain('portfolio-link');
+      expect(link.className).not.toContain('view-tab');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('renders NO portfolio link when VITE_PORTFOLIO_URL is unset/empty — the maintainer URL never ships to template users', async () => {
+    vi.stubEnv('VITE_PORTFOLIO_URL', '');
+    render(<App loader={loader} />);
+    await waitFor(() => expect(screen.getByText('a/one')).toBeTruthy());
+    try {
+      expect(screen.queryByRole('link', { name: 'Return to Portfolio' })).toBeNull();
+      expect(document.querySelector('.portfolio-link')).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

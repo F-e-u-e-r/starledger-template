@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -62,6 +64,57 @@ describe('RepositoryView', () => {
     expect(link.getAttribute('href')).toBe('https://github.com/acme/ts-tool');
   });
 
+  it('M3-ID-1: the header renders exactly one brand mark and one StarLedger wordmark', () => {
+    const { container } = renderView();
+    expect(container.querySelectorAll('.brand-mark')).toHaveLength(1);
+    expect(screen.getAllByRole('heading', { name: 'StarLedger' })).toHaveLength(1);
+  });
+
+  it('M3-ID-2: the inline mark is the `>_` prompt glyph — a decorative text span, no SVG, no nested element, no inline paint (supersedes the Concept-B grammar, ADR-005)', () => {
+    const { container } = renderView();
+    const mark = container.querySelector('.brand-mark');
+    expect(mark).toBeTruthy();
+    // The identity mark is now a plain text glyph, not an SVG drawing.
+    expect(mark!.tagName.toLowerCase()).toBe('span');
+    expect(container.querySelector('svg.brand-mark')).toBeNull();
+    // Exactly the `>_` prompt, and no child elements.
+    expect(mark!.textContent).toBe('>_');
+    expect(mark!.children).toHaveLength(0);
+    // No inline paint channel — colour/font come only from the stylesheet tokens.
+    expect(mark!.getAttribute('style')).toBeNull();
+    expect(mark!.getAttribute('color')).toBeNull();
+    expect(mark!.outerHTML).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(mark!.outerHTML).not.toMatch(/\b(?:rgb|hsl)a?\(/i);
+  });
+
+  it('M3-ID-2 (CSS): `.brand-mark` is the muted-emerald mono glyph — `color: var(--accent-muted)` + `font-family: var(--font-mono)` (the WINNING rendered paint is the browser gate, ADR-005)', () => {
+    // Light source-regression, NOT a cascade proof (jsdom cannot compute the cascade).
+    const css = readFileSync(resolve(import.meta.dirname, '../../styles.css'), 'utf8');
+    const rule = css.match(/\.brand-mark\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(rule).toMatch(/\bcolor:\s*var\(--accent-muted\)/);
+    expect(rule).toMatch(/\bfont-family:\s*var\(--font-mono\)/);
+  });
+
+  it('M3-ID-3: the mark is decorative and the wordmark is the ONLY accessible "StarLedger" — no duplicate accessible name leaks into the header (F-A)', () => {
+    const { container } = renderView();
+    const header = container.querySelector<HTMLElement>('header');
+    expect(header).toBeTruthy();
+    const mark = container.querySelector('.brand-mark')!;
+    // Purely decorative — contributes no accessible name.
+    expect(mark.getAttribute('aria-hidden')).toBe('true');
+    expect(mark.getAttribute('role')).toBeNull();
+    expect(mark.getAttribute('aria-label')).toBeNull();
+    expect(screen.queryByRole('img')).toBeNull();
+    // Exactly one heading AND one "StarLedger" text node in the header (the `>_`
+    // glyph is not "StarLedger", so it adds no second accessible name).
+    expect(within(header!).getAllByRole('heading', { name: 'StarLedger' })).toHaveLength(1);
+    expect(within(header!).getAllByText('StarLedger')).toHaveLength(1);
+    expect(
+      header!.querySelectorAll(
+        '[aria-label="StarLedger"], [title="StarLedger"], img[alt="StarLedger"]',
+      ),
+    ).toHaveLength(0);
+  });
   it('SEARCH: narrows results and reflects the query in the URL (replaceState)', () => {
     renderView();
     fireEvent.change(search(), { target: { value: 'telegram' } });
@@ -350,8 +403,11 @@ describe('RepositoryView — R3 effective-filter badge (§13, M1.2a)', () => {
 
   it('R3-ready: once the AI layer is ready, the activated AI filter is counted', () => {
     window.history.replaceState(null, '', '/?category=security');
+    // Coherent-ready requires an explicit `ready` status AND data (F4); data
+    // presence alone no longer activates the layer (see ai-readiness-coherence).
     renderView(sampleRepos(), {
       annotations: makeAnnotations({ R_ts: makeAnnotation({ category: 'security' }) }),
+      annotationStatus: 'ready',
     });
     // AI ready → the category filter activates → counted
     expect(screen.getByRole('button', { name: 'Filters 1' })).toBeTruthy();
@@ -594,11 +650,14 @@ describe('RepositoryView — M1.2f integrated closure (§13)', () => {
     );
 
     rerender(
+      // Coherent-ready = explicit `ready` status AND data (F4); the status is
+      // what App sets atomically alongside the annotations in production.
       <Harness
         repos={repos}
         datasetGeneratedAt="2026-06-18T00:00:00Z"
         initialNow={NOW}
         annotations={makeAnnotations({ R_int0: makeAnnotation({ category: 'security' }) })}
+        annotationStatus="ready"
       />,
     );
     // ready: the category filter activates → exactly the annotated Go repo
