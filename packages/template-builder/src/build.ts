@@ -109,9 +109,13 @@ export function buildTemplate(options: BuildOptions): BuildManifest {
     }
   }
 
-  // 2. Allowed root files.
+  // 2. Allowed root files. The basename deny applies here too, so EXCLUDE_BASENAMES
+  // outranks a positive allow decision: were one of these names ever added to
+  // ALLOW_FILES by mistake, the generated template still would not ship it. An
+  // allowlist test keeps the allow and deny sets disjoint, so this never fires today.
   for (const f of ALLOW_FILES) {
     if (!existsSync(join(srcRoot, f))) continue;
+    if (isExcluded(f)) continue;
     copyFile(f);
     manifest.copied.push(f);
   }

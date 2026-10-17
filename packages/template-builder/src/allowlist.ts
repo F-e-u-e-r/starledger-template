@@ -55,6 +55,11 @@ export const EXCLUDE_BASENAMES = new Set([
   'classifier-state.json',
   'discovery-candidates.json',
   'discovery-candidates-meta.json',
+  // Skills classifier output (`pnpm skills-classify`): owner/generated
+  // classification artifacts, same class as the generated data files above.
+  'skills-classification.json',
+  'skills-classification-meta.json',
+  'skills-classified.md',
   '.DS_Store',
   'config.yaml',
   'ai.yaml',
@@ -99,9 +104,10 @@ function segments(rel: string): string[] {
 }
 
 /**
- * True if a repo-relative path must be excluded. Applies segment, basename, and
- * a config-directory rule: under `config/`, only `*.example.yaml` ships (so the
- * live `config/ai.yaml` / `config/notifier.yaml` never leak).
+ * True if a repo-relative path must be excluded. Applies segment, basename, a
+ * docs/reviews local-drafts rule, and a config-directory rule: under `config/`,
+ * only `*.example.yaml` ships (so the live `config/ai.yaml` / `config/notifier.yaml`
+ * never leak).
  */
 export function isExcluded(rel: string): boolean {
   const segs = segments(rel);
@@ -112,6 +118,12 @@ export function isExcluded(rel: string): boolean {
   // as `apps/` or `packages/`. This covers `.env`, `.env.local`, `.envrc`, etc.
   if (base.startsWith('.env')) return true;
   if (base.endsWith('.tsbuildinfo') || base.endsWith('.swp')) return true;
+  // Local code-review drafts live under docs/reviews/ (gitignored — see
+  // .gitignore). They are developer-local scratch, never template content, but
+  // the builder walks the filesystem (not `git ls-files`), so a copy left in a
+  // working tree would ship without this veto. Anchored to docs/reviews so a
+  // legitimate `reviews/` directory elsewhere in the tree is unaffected.
+  if (segs[0] === 'docs' && segs[1] === 'reviews') return true;
   if (segs[0] === 'config' && !base.endsWith('.example.yaml')) return true;
   return false;
 }

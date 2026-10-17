@@ -81,8 +81,13 @@ ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`
   `JetBrains Mono Fallback` face + `font-display: swap` keep layout shift at
   zero, so no `<link rel=preload>` is needed.
 - The URLs are root-absolute (`url('/fonts/…')`) so Vite rewrites them with the
-  Pages base (`/starledger/fonts/…`). An external font CDN would be blocked by
-  the deploy CSP (`font-src 'self'`) and is never used.
+  deployment base at build time, giving the runtime URL `<base>fonts/…`.
+  `vite.config.ts` derives `base` from `GITHUB_REPOSITORY` — `/<repo>/` under
+  GitHub Actions, `/` otherwise — so it resolves to `/starledger/fonts/…` for
+  this repo's own Pages deploy, `/<fork-repo>/fonts/…` for a template fork, and
+  `/fonts/…` at a domain root; `/starledger/` is not a universal path. An
+  external font CDN would be blocked by the deploy CSP (`font-src 'self'`) and is
+  never used.
 
 ## Borders, geometry, elevation (preserved)
 
@@ -119,10 +124,20 @@ var(--focus); outline-offset: 2px }`. The 2px offset shows the surface behind
 
 ## starledger-template parity
 
-**RECOMMENDED, not required.** StarLedger is the source; `starledger-template`
-is regenerated manually (`pnpm template:build --force --verify`) and already
-lags the parent. These changes are kept template-buildable (the font assets and
-the OFL licence are inside the allowlist; nothing is hardcoded to `/starledger/`;
-the portfolio URL is opt-in). Carry them to the template later via a
-`sync/starledger-<sha>` regeneration PR — do not hand-port a subset. The
-template is **not** modified by this change.
+StarLedger is the **source of truth** for this visual contract.
+`starledger-template` receives applicable changes through the canonical,
+one-way regeneration process — `pnpm template:build --out <dir> --verify`, where
+`<dir>` is a sibling destination outside the source checkout (add `--force` to
+rewrite a non-empty one) — landed as a
+`sync/starledger-<sha>` regeneration PR, never a hand-ported subset. The
+template is **not** a runtime or shared-package dependency, so parity is
+**release-cycle based**: the two repos stay independently versioned and each is
+canonical for its own artifact, and any later change to this source requires a
+later regeneration to reach the template.
+
+`starledger-template` was regenerated from StarLedger through the canonical
+builder for the beta.4 release, so the two are in parity as of that cycle.
+These tokens stay template-buildable by construction — the font assets and the
+OFL licence are inside the builder allowlist, nothing is hardcoded to a single
+deployment base (see the font-path note above), and the Portfolio link is
+opt-in — so a regeneration carries them without hand-porting.

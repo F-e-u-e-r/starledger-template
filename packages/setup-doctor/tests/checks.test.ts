@@ -223,6 +223,71 @@ describe('checkTemplateClean', () => {
     const out = checkTemplateClean(d);
     expect(out.find((r) => r.id === 'clean.env-files')?.status).toBe('invalid');
   });
+
+  it('skills classification artifact present → invalid (each of the three)', () => {
+    for (const f of [
+      'skills-classification.json',
+      'skills-classification-meta.json',
+      'skills-classified.md',
+    ]) {
+      const d = tmp();
+      write(d, f, 'x');
+      const r = checkTemplateClean(d).find((x) => x.id === 'clean.personal-artifacts');
+      expect(r?.status).toBe('invalid');
+      expect(r?.detail).toContain(f); // named for remediation
+    }
+  });
+
+  it('all three skills classification artifacts together → invalid, each named', () => {
+    const d = tmp();
+    const all = [
+      'skills-classification.json',
+      'skills-classification-meta.json',
+      'skills-classified.md',
+    ];
+    for (const f of all) write(d, f, 'x');
+    const r = checkTemplateClean(d).find((x) => x.id === 'clean.personal-artifacts');
+    expect(r?.status).toBe('invalid');
+    for (const f of all) expect(r?.detail).toContain(f);
+  });
+
+  it('a schema sibling of a skills artifact does not trip the check (exact-path match)', () => {
+    const d = tmp();
+    // Legitimate shipped schema; detection is root-relative exact-path, so a
+    // schemas/ sibling must NOT be mistaken for the generated root artifact.
+    write(d, 'schemas/skills-classification.schema.json', '{}');
+    const r = checkTemplateClean(d).find((x) => x.id === 'clean.personal-artifacts');
+    expect(r?.status).toBe('pass');
+  });
+
+  it('discovery candidate artifact present → invalid (each of the two)', () => {
+    for (const f of ['discovery-candidates.json', 'discovery-candidates-meta.json']) {
+      const d = tmp();
+      write(d, f, 'x');
+      const r = checkTemplateClean(d).find((x) => x.id === 'clean.personal-artifacts');
+      expect(r?.status).toBe('invalid');
+      expect(r?.detail).toContain(f); // named for remediation
+    }
+  });
+
+  it('both discovery candidate artifacts together → invalid, each named', () => {
+    const d = tmp();
+    const all = ['discovery-candidates.json', 'discovery-candidates-meta.json'];
+    for (const f of all) write(d, f, 'x');
+    const r = checkTemplateClean(d).find((x) => x.id === 'clean.personal-artifacts');
+    expect(r?.status).toBe('invalid');
+    for (const f of all) expect(r?.detail).toContain(f);
+  });
+
+  it('a schema sibling of a discovery artifact does not trip the check (exact-path match)', () => {
+    const d = tmp();
+    // Legitimate shipped schema (schemas/discovery-candidates.schema.json is a
+    // tracked repo file); detection is root-relative exact-path, so a schemas/
+    // sibling must NOT be mistaken for the generated root artifact.
+    write(d, 'schemas/discovery-candidates.schema.json', '{}');
+    const r = checkTemplateClean(d).find((x) => x.id === 'clean.personal-artifacts');
+    expect(r?.status).toBe('pass');
+  });
 });
 
 describe('network checks (injected fetch)', () => {
