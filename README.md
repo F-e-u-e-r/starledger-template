@@ -50,6 +50,28 @@ only (their `cron:` is preserved as a comment) so nothing runs before you have
 added secrets and explicitly enabled the matching feature. Re-enable them
 deliberately once `setup:doctor` passes.
 
+### Inside the dashboard
+
+The stars dashboard (on by default) is more than a sortable list — all of the
+following ship with it and need no extra secrets:
+
+- **Browse** — filter, sort, and search your stars. An optional
+  **group-by-category** view buckets classified repositories under their primary
+  skill category; it becomes available once the AI/skills layer has classified
+  them.
+- **Insights** — a second read-only view (reachable from the view tabs once
+  stars load) with deterministic cards over your current snapshot: category
+  distribution, starring activity by month, forgotten (stale) stars, and
+  skills-classification coverage. Cards that need the AI or skills layer degrade
+  gracefully when it is absent.
+- **Context Builder** — export the current filtered-and-ordered set as a compact
+  Markdown or JSON package to hand to an AI agent. It is deterministic and fully
+  offline: no model is called and nothing leaves the page.
+- **`← Portfolio` return link** — optional and off by default. It renders only
+  when the build sets `VITE_PORTFOLIO_URL` (from a `PORTFOLIO_URL` Actions repo
+  variable) to a destination you choose; no URL ships in the template, and
+  leaving it unset is valid — the link simply does not appear.
+
 ## Trust model
 
 ```text

@@ -6,8 +6,12 @@ import { describe, expect, it } from 'vitest';
 // M3-ID-4 / F-B / F-D — PARSER-based, not regex. index.html is parsed as HTML and
 // favicon.svg as image/svg+xml, so single-quoted, double-quoted, and unquoted
 // spellings all normalise to the same parsed attributes: quote style is no longer an
-// escape surface (R3 boundary). The RESOLVED build output (`/starledger/favicon.svg`)
-// is the build gate (M3-ID-5); the RENDERED favicon colour is the browser gate. These
+// escape surface (R3 boundary). The RESOLVED build output is the build gate
+// (M3-ID-5): Vite rewrites `%BASE_URL%` to the deployment base derived by the
+// GitHub Actions build from `GITHUB_REPOSITORY`, so for THIS repo it is
+// `/starledger/favicon.svg`, for a template fork `/<fork-repo>/favicon.svg`, and
+// `/favicon.svg` at a domain root — `/starledger/` is the resolved value here, not
+// a universal path. The RENDERED favicon colour is the browser gate. These
 // pin the parsed SOURCE contract — parsed semantics, not source spelling.
 const appRoot = resolve(import.meta.dirname, '../../..');
 const indexHtml = readFileSync(resolve(appRoot, 'index.html'), 'utf8');
