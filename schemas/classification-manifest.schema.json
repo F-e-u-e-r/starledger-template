@@ -1,347 +1,354 @@
 {
-  "$ref": "#/definitions/ClassificationManifest",
-  "definitions": {
-    "ClassificationManifest": {
-      "type": "object",
-      "properties": {
-        "schema_version": {
-          "type": "string",
-          "const": "1.0"
-        },
-        "taxonomy_version": {
-          "type": "string",
-          "const": "1"
-        },
-        "prompt_version": {
-          "type": "string",
-          "minLength": 1
-        },
-        "execution_profile_version": {
-          "type": "string",
-          "minLength": 1
-        },
-        "executor_kind": {
-          "type": "string",
-          "enum": [
-            "claude-routine",
-            "codex-automation"
-          ]
-        },
-        "dataset_sha256": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
-        },
-        "jobs": {
-          "type": "array",
-          "items": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "taxonomy_version": {
+      "type": "string",
+      "const": "1"
+    },
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "execution_profile_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "executor_kind": {
+      "type": "string",
+      "enum": [
+        "claude-routine",
+        "codex-automation"
+      ]
+    },
+    "dataset_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0"
+          },
+          "job_id": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "taxonomy_version": {
+            "type": "string",
+            "const": "1"
+          },
+          "prompt_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "execution_profile_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "executor_kind": {
+            "type": "string",
+            "enum": [
+              "claude-routine",
+              "codex-automation"
+            ]
+          },
+          "input": {
             "type": "object",
             "properties": {
-              "schema_version": {
-                "type": "string",
-                "const": "1.0"
-              },
-              "job_id": {
-                "type": "string",
-                "pattern": "^sha256:[0-9a-f]{64}$"
-              },
-              "node_id": {
+              "name_with_owner": {
                 "type": "string",
                 "minLength": 1
               },
-              "source_fingerprint": {
-                "$ref": "#/definitions/ClassificationManifest/properties/dataset_sha256"
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               },
-              "taxonomy_version": {
+              "primary_language": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "topics": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "repo_metadata_sha256": {
                 "type": "string",
-                "const": "1"
+                "pattern": "^[0-9a-f]{64}$"
               },
-              "prompt_version": {
-                "type": "string",
-                "minLength": 1
-              },
-              "execution_profile_version": {
-                "type": "string",
-                "minLength": 1
-              },
-              "executor_kind": {
-                "$ref": "#/definitions/ClassificationManifest/properties/executor_kind"
-              },
-              "input": {
-                "type": "object",
-                "properties": {
-                  "name_with_owner": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "description": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "primary_language": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "topics": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "maxItems": 100
-                  },
-                  "repo_metadata_sha256": {
-                    "$ref": "#/definitions/ClassificationManifest/properties/dataset_sha256"
-                  },
-                  "readme": {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "path": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "oid": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 128
-                          },
-                          "content": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "path",
-                          "oid",
-                          "content"
-                        ],
-                        "additionalProperties": false
+              "readme": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1
                       },
-                      {
-                        "type": "null"
+                      "oid": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "content": {
+                        "type": "string"
                       }
-                    ]
-                  }
-                },
-                "required": [
-                  "name_with_owner",
-                  "description",
-                  "primary_language",
-                  "topics",
-                  "repo_metadata_sha256",
-                  "readme"
-                ],
-                "additionalProperties": false
-              },
-              "constraints": {
-                "type": "object",
-                "properties": {
-                  "allowed_categories": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "enum": [
-                        "ai-ml",
-                        "communication-collaboration",
-                        "data-analytics",
-                        "developer-tools",
-                        "devops-infrastructure",
-                        "education-reference",
-                        "libraries-frameworks",
-                        "media-creative",
-                        "mobile",
-                        "other",
-                        "productivity-automation",
-                        "security-privacy",
-                        "self-hosted-homelab",
-                        "web-applications"
-                      ]
                     },
-                    "minItems": 1
+                    "required": [
+                      "path",
+                      "oid",
+                      "content"
+                    ],
+                    "additionalProperties": false
                   },
-                  "allowed_tags": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "enum": [
-                        "ai-agents",
-                        "api",
-                        "authentication",
-                        "automation",
-                        "awesome-list",
-                        "backend",
-                        "backup",
-                        "benchmark",
-                        "boilerplate",
-                        "bot",
-                        "build-tool",
-                        "caching",
-                        "cli",
-                        "cms",
-                        "code-generation",
-                        "configuration",
-                        "containers",
-                        "dashboard",
-                        "database",
-                        "deployment",
-                        "desktop-app",
-                        "documentation",
-                        "editor",
-                        "encryption",
-                        "etl",
-                        "frontend",
-                        "game",
-                        "graphql",
-                        "gui",
-                        "kubernetes",
-                        "library",
-                        "linter",
-                        "llm",
-                        "logging",
-                        "machine-learning",
-                        "markdown",
-                        "message-queue",
-                        "monitoring",
-                        "networking",
-                        "no-code",
-                        "notifications",
-                        "observability",
-                        "orchestration",
-                        "orm",
-                        "package-manager",
-                        "plugin",
-                        "productivity",
-                        "proxy",
-                        "real-time",
-                        "rest-api",
-                        "scraping",
-                        "sdk",
-                        "search",
-                        "security-scanner",
-                        "self-hosted",
-                        "serverless",
-                        "static-site-generator",
-                        "terminal",
-                        "testing",
-                        "theme",
-                        "tui",
-                        "vector-database",
-                        "visualization",
-                        "web-framework",
-                        "workflow"
-                      ]
-                    }
-                  },
-                  "max_tags": {
-                    "type": "number",
-                    "const": 6
-                  },
-                  "summary_min_chars": {
-                    "type": "number",
-                    "const": 80
-                  },
-                  "summary_max_chars": {
-                    "type": "number",
-                    "const": 400
+                  {
+                    "type": "null"
                   }
-                },
-                "required": [
-                  "allowed_categories",
-                  "allowed_tags",
-                  "max_tags",
-                  "summary_min_chars",
-                  "summary_max_chars"
-                ],
-                "additionalProperties": false
+                ]
               }
             },
             "required": [
-              "schema_version",
-              "job_id",
-              "node_id",
-              "source_fingerprint",
-              "taxonomy_version",
-              "prompt_version",
-              "execution_profile_version",
-              "executor_kind",
-              "input",
-              "constraints"
+              "name_with_owner",
+              "description",
+              "primary_language",
+              "topics",
+              "repo_metadata_sha256",
+              "readme"
+            ],
+            "additionalProperties": false
+          },
+          "constraints": {
+            "type": "object",
+            "properties": {
+              "allowed_categories": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "ai-ml",
+                    "communication-collaboration",
+                    "data-analytics",
+                    "developer-tools",
+                    "devops-infrastructure",
+                    "education-reference",
+                    "libraries-frameworks",
+                    "media-creative",
+                    "mobile",
+                    "other",
+                    "productivity-automation",
+                    "security-privacy",
+                    "self-hosted-homelab",
+                    "web-applications"
+                  ]
+                }
+              },
+              "allowed_tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "ai-agents",
+                    "api",
+                    "authentication",
+                    "automation",
+                    "awesome-list",
+                    "backend",
+                    "backup",
+                    "benchmark",
+                    "boilerplate",
+                    "bot",
+                    "build-tool",
+                    "caching",
+                    "cli",
+                    "cms",
+                    "code-generation",
+                    "configuration",
+                    "containers",
+                    "dashboard",
+                    "database",
+                    "deployment",
+                    "desktop-app",
+                    "documentation",
+                    "editor",
+                    "encryption",
+                    "etl",
+                    "frontend",
+                    "game",
+                    "graphql",
+                    "gui",
+                    "kubernetes",
+                    "library",
+                    "linter",
+                    "llm",
+                    "logging",
+                    "machine-learning",
+                    "markdown",
+                    "message-queue",
+                    "monitoring",
+                    "networking",
+                    "no-code",
+                    "notifications",
+                    "observability",
+                    "orchestration",
+                    "orm",
+                    "package-manager",
+                    "plugin",
+                    "productivity",
+                    "proxy",
+                    "real-time",
+                    "rest-api",
+                    "scraping",
+                    "sdk",
+                    "search",
+                    "security-scanner",
+                    "self-hosted",
+                    "serverless",
+                    "static-site-generator",
+                    "terminal",
+                    "testing",
+                    "theme",
+                    "tui",
+                    "vector-database",
+                    "visualization",
+                    "web-framework",
+                    "workflow"
+                  ]
+                }
+              },
+              "max_tags": {
+                "type": "number",
+                "const": 6
+              },
+              "summary_min_chars": {
+                "type": "number",
+                "const": 80
+              },
+              "summary_max_chars": {
+                "type": "number",
+                "const": 400
+              }
+            },
+            "required": [
+              "allowed_categories",
+              "allowed_tags",
+              "max_tags",
+              "summary_min_chars",
+              "summary_max_chars"
             ],
             "additionalProperties": false
           }
         },
-        "plan_summary": {
-          "type": "object",
-          "properties": {
-            "eligible_new": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "eligible_retry": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "eligible_refresh": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "omitted_unfetchable": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "deferred_retry": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "deferred_terminal": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "empty_reason": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "enum": [
-                    "disabled",
-                    "zero-budget",
-                    "drained-at-base",
-                    "all-omitted",
-                    "deferred"
-                  ]
-                },
-                {
-                  "type": "null"
-                }
+        "required": [
+          "schema_version",
+          "job_id",
+          "node_id",
+          "source_fingerprint",
+          "taxonomy_version",
+          "prompt_version",
+          "execution_profile_version",
+          "executor_kind",
+          "input",
+          "constraints"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "plan_summary": {
+      "type": "object",
+      "properties": {
+        "eligible_new": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "eligible_retry": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "eligible_refresh": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "omitted_unfetchable": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "deferred_retry": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "deferred_terminal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "empty_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "disabled",
+                "zero-budget",
+                "drained-at-base",
+                "all-omitted",
+                "deferred"
               ]
+            },
+            {
+              "type": "null"
             }
-          },
-          "required": [
-            "eligible_new",
-            "eligible_retry",
-            "eligible_refresh",
-            "omitted_unfetchable",
-            "deferred_retry",
-            "deferred_terminal",
-            "empty_reason"
-          ],
-          "additionalProperties": false
+          ]
         }
       },
       "required": [
-        "schema_version",
-        "taxonomy_version",
-        "prompt_version",
-        "execution_profile_version",
-        "executor_kind",
-        "dataset_sha256",
-        "jobs"
+        "eligible_new",
+        "eligible_retry",
+        "eligible_refresh",
+        "omitted_unfetchable",
+        "deferred_retry",
+        "deferred_terminal",
+        "empty_reason"
       ],
       "additionalProperties": false
     }
   },
-  "$schema": "https://json-schema.org/draft/2019-09/schema#"
+  "required": [
+    "schema_version",
+    "taxonomy_version",
+    "prompt_version",
+    "execution_profile_version",
+    "executor_kind",
+    "dataset_sha256",
+    "jobs"
+  ],
+  "additionalProperties": false
 }

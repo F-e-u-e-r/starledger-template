@@ -1,6 +1,23 @@
 import { z } from 'zod';
 
 /**
+ * Zod 3 `.url()` semantics: the raw value must parse as a URL and is stored
+ * unchanged. Zod 4's `.url()` trims the input and rewrites the stored value,
+ * which would also accept Unicode-whitespace-wrapped values Zod 3 rejected.
+ */
+const UrlStringSchema = z.string().refine(
+  (value) => {
+    try {
+      new URL(value);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: 'Invalid url' },
+);
+
+/**
  * Schema version for the notifier's state document and contracts. This is
  * DELIBERATELY separate from `@starred/schema`'s `SCHEMA_VERSION` (which
  * versions the canonical stars.json): the notifier state and the stars dataset
@@ -38,7 +55,7 @@ export const DiscoveryItemSchema = z
     /** Human-facing title for rendering (video title / repo full name). */
     title: z.string(),
     /** Canonical source URL (watch url / repo url). */
-    url: z.string().url(),
+    url: UrlStringSchema,
     /** Best-effort enrichment; may be absent. NEVER required for ingestion. */
     description: z.string().nullable(),
     /** ISO-8601 publish/commit time if the source provides one. */
@@ -56,7 +73,7 @@ export const RepoReleaseSchema = z
   .object({
     tag_name: z.string().min(1),
     published_at: z.string().nullable(),
-    url: z.string().url(),
+    url: UrlStringSchema,
   })
   .strict();
 export type RepoRelease = z.infer<typeof RepoReleaseSchema>;
@@ -77,7 +94,7 @@ export const ResolvedRepositorySchema = z
     name_with_owner: z.string().min(1),
     owner: z.string().min(1),
     name: z.string().min(1),
-    url: z.string().url(),
+    url: UrlStringSchema,
     description: z.string().nullable(),
     primary_language: z.string().nullable(),
     topics: z.array(z.string()),
