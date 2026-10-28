@@ -30,12 +30,16 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       // Count every source file, not just imported ones, so a new untested
-      // module shows up instead of silently raising the average.
-      all: true,
+      // module shows up instead of silently raising the average. Since Vitest 4
+      // an explicit `include` does exactly this (`coverage.all` was removed):
+      // every file matching `include` is reported whether or not a test loaded it.
       include: ['packages/*/src/**', 'apps/*/src/**'],
       exclude: [
         '**/*.test.{ts,tsx}',
         '**/*.d.ts',
+        // Vitest 4 also removed `coverage.extensions`, so a bare `include` now
+        // matches non-script files too; keep the denominator to source files.
+        '**/*.css',
         '**/generate-schemas.ts', // build-time codegen
         '**/cli.ts', // process entry points (commander wiring; delegate to lib)
         // Same entry-point rationale: the classifier's commander wiring, split out

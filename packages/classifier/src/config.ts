@@ -27,7 +27,7 @@ export const AiConfigSchema = z
         /** The single executor allowed to process manifests created from this config. */
         executor_kind: AgentExecutorKindSchema.default(DEFAULT_AGENT_EXECUTOR_KIND),
         /** The StarLedger-controlled method/cache version, not a provider model id. */
-        execution_profile: AgentExecutionProfileSchema.default(DEFAULT_AGENT_EXECUTION_PROFILE),
+        execution_profile: AgentExecutionProfileSchema.prefault(DEFAULT_AGENT_EXECUTION_PROFILE),
         /** Hard caps on untrusted input length (implemented with README discovery in P3.1). */
         readme_max_chars: z.number().int().min(1_000).max(200_000).default(30_000),
         metadata_max_chars: z.number().int().min(500).max(50_000).default(5_000),
@@ -40,10 +40,10 @@ export const AiConfigSchema = z
             max_total_per_run: z.number().int().min(1).default(25),
           })
           .strict()
-          .default({}),
+          .prefault({}),
       })
       .strict()
-      .default({}),
+      .prefault({}),
   })
   .strict();
 
