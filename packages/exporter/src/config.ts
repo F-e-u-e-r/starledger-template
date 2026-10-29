@@ -19,7 +19,7 @@ export const ConfigSchema = z
         run_meta: z.string().default('run-meta.json'),
       })
       .strict()
-      .default({}),
+      .prefault({}),
   })
   .strict();
 

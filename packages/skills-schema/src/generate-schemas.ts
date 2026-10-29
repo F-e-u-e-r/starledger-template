@@ -9,11 +9,14 @@
  * JSON Schema. The Zod schemas are the single source of truth and the only
  * complete validators; each emitted file carries a `$comment` saying so. This
  * mirrors the P0/P3 schema generators.
+ *
+ * Emitted with Zod 4's native `z.toJSONSchema` (draft 2020-12, flat root); see
+ * packages/schema/src/generate-schemas.ts for the equivalence note.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 import { SkillsAliasesSchema } from './aliases';
 import { SkillsClassificationSchema } from './artifact';
 import { SkillsClassificationMetaSchema } from './meta';
@@ -29,17 +32,13 @@ const PROJECTION_NOTE =
   'does NOT establish contract validity (P7 section 4.0). Do not use as a complete validator.';
 
 const targets = [
-  ['skills-classification.schema.json', SkillsClassificationSchema, 'SkillsClassification'],
-  [
-    'skills-classification-meta.schema.json',
-    SkillsClassificationMetaSchema,
-    'SkillsClassificationMeta',
-  ],
-  ['skills-aliases.schema.json', SkillsAliasesSchema, 'SkillsAliases'],
+  ['skills-classification.schema.json', SkillsClassificationSchema],
+  ['skills-classification-meta.schema.json', SkillsClassificationMetaSchema],
+  ['skills-aliases.schema.json', SkillsAliasesSchema],
 ] as const;
 
-for (const [file, schema, name] of targets) {
-  const json = zodToJsonSchema(schema, { name, target: 'jsonSchema2019-09' });
+for (const [file, schema] of targets) {
+  const json = z.toJSONSchema(schema, { target: 'draft-2020-12' });
   const stamped = { $comment: PROJECTION_NOTE, ...json };
   writeFileSync(resolve(outDir, file), JSON.stringify(stamped, null, 2) + '\n');
   console.log(`wrote schemas/${file}`);

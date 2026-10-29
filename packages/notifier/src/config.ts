@@ -18,7 +18,7 @@ export const NotifierConfigSchema = z
         recent_seen_limit: z.number().int().min(50).max(500).default(100),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     awesome_stars: z
       .object({
@@ -29,7 +29,7 @@ export const NotifierConfigSchema = z
         paths: z.array(z.string().min(1)).min(1).default(['README.md']),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     telegram: z
       .object({
@@ -37,7 +37,7 @@ export const NotifierConfigSchema = z
         disable_web_page_preview: z.boolean().default(true),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     state: z
       .object({
@@ -47,7 +47,7 @@ export const NotifierConfigSchema = z
         remote: z.string().min(1).default('origin'),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     retention: z
       .object({
@@ -56,7 +56,7 @@ export const NotifierConfigSchema = z
         delivery_max: z.number().int().min(1).default(2000),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     summary: z
       .object({
@@ -67,7 +67,7 @@ export const NotifierConfigSchema = z
         use_llm: z.boolean().default(false),
       })
       .strict()
-      .default({}),
+      .prefault({}),
 
     retry: z
       .object({
@@ -77,7 +77,7 @@ export const NotifierConfigSchema = z
         attention_after_attempts: z.number().int().min(1).default(6),
       })
       .strict()
-      .default({}),
+      .prefault({}),
   })
   .strict()
   .superRefine((config, ctx) => {

@@ -51,12 +51,23 @@ function hasUnsafeFormatCharacter(value: string): boolean {
   return false;
 }
 
+/**
+ * Zod 3's `.datetime({ offset: true })` grammar, kept verbatim. Zod 4 made the
+ * seconds mandatory and restricted the offset form; the committed contract only
+ * says "UTC ISO-8601 strings ending in Z", so tightening the grammar is an
+ * owner decision, not a side effect of a dependency upgrade.
+ */
+const ZOD3_DATETIME_WITH_OFFSET =
+  /^((\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\d|3[01])|(0[469]|11)-(0[1-9]|[12]\d|30)|(02)-(0[1-9]|1\d|2[0-8])))T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d(\.\d+)?)?(Z|([+-]\d{2}:?\d{2}))$/;
+
 export const UtcTimestampSchema = z
   .string()
-  .datetime({ offset: true })
+  .refine((value) => ZOD3_DATETIME_WITH_OFFSET.test(value), { message: 'Invalid datetime' })
   .refine((value) => value.endsWith('Z'), {
     message: 'must be a UTC timestamp ending in Z',
-  });
+  })
+  // Projection only: keeps `format: "date-time"` in the generated schemas/*.json.
+  .meta({ format: 'date-time' });
 
 /**
  * Opaque Git object id from GitHub README metadata. It may be SHA-1 or SHA-256

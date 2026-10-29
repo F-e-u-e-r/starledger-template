@@ -11,7 +11,11 @@ import { z } from 'zod';
  */
 export const HttpsUrlSchema = z
   .string()
-  .url()
+  // Zod 4's `.url()` trims the input, REWRITES the stored value to the trimmed
+  // form and thereby accepts values wrapped in Unicode whitespace that Zod 3
+  // rejected. The `new URL` probe below is exactly Zod 3's `.url()` check, so
+  // the pre-migration contract is kept: accept iff the raw value parses as an
+  // https URL, and store it unchanged.
   .refine(
     (value) => {
       try {
@@ -21,7 +25,9 @@ export const HttpsUrlSchema = z
       }
     },
     { message: 'must be an https URL' },
-  );
+  )
+  // Projection only: keeps `format: "uri"` in the generated schemas/*.json.
+  .meta({ format: 'uri' });
 
 /**
  * A release reference as GitHub's "Latest" release (Repository.latestRelease).
