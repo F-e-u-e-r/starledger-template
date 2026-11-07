@@ -3,3 +3,11 @@ packages:
   - 'apps/*'
 allowBuilds:
   esbuild: true
+# Security floors (GHSA-73wf-gq98-2v4g, GHSA-c83g-rgw3-j3cx, GHSA-w5vr-8v7q-w6rv). Only requests
+# that could resolve below a floor are rewritten; safe and future-major requests are untouched.
+# browserslist 4.28.8 is the first release whose baseline-browser-mapping range guarantees
+# >=2.11.x; baseline-browser-mapping is also floored directly so the patched floor does not
+# rely solely on browserslist's caret range.
+overrides:
+  'browserslist@<4.28.8': '>=4.28.8 <5'
+  'baseline-browser-mapping@<2.11.0': '>=2.11.0 <3'

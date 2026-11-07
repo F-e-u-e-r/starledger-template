@@ -63,9 +63,55 @@ Protect `main` and require these existing jobs on artifact PRs:
 | `verify-ai-provenance`   | `ai-provenance.yml` | Recomputes jobs/fingerprints from trusted base data; rejects stale or invented annotations. |
 | `verify`                 | `ci.yml`            | General CI (typecheck/lint/test/build).                                                     |
 
-Both gates run on `pull_request_target` from the trusted base branch, fetch the
+Both gates run on `pull_request_target` from the trusted default branch, fetch the
 PR head **as data only**, and never execute PR code. **Keep auto-merge disabled**
 initially and merge manually after reviewing the artifact.
+
+### Actions event policy for the gates (public repositories)
+
+In **public** repositories GitHub provides a default Actions event policy that
+blocks `pull_request_target` unless an applicable Actions event policy explicitly
+allows it; private and internal repositories are not affected. Where the default
+is enforced, a blocked gate run fails without executing, so neither required
+check can pass. GitHub's
+[Securely using `pull_request_target`](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target)
+page has the current enforcement status.
+
+Repositories created from `starledger-template` inherit repository files, not
+instance-specific GitHub Actions policy configuration: a policy set on the
+template repository does not carry over. Configure your own:
+
+1. In your repository, open **Settings → Actions → Policies** and create a new
+   policy.
+2. Set its enforcement status to **Active**.
+3. Target only `.github/workflows/ai-agent-pr.yml` and
+   `.github/workflows/ai-provenance.yml`.
+4. Under **Restrict events**, allow only `pull_request_target`.
+
+Keep it that narrow: never target all workflows (`~ALL`, or no workflow
+targeting), allow all events, or add a broad repository-wide exception. If an
+organization or enterprise policy that applies to your repository already allows
+these two workflows on `pull_request_target`, a duplicate repository-level
+policy may not be necessary; verify the effective policy rather than assuming.
+
+The policy only lets the gates run; their trust model is unchanged. The workflow
+definition comes from the repository's protected default branch, each gate job
+checks out the trusted `base.sha`, the PR head is fetched as data only and never
+checked out or executed, the token is limited to `contents: read`, and no
+repository secret is used (the provenance gate reads READMEs with that read-only
+`GITHUB_TOKEN`). Do not switch the gates to `pull_request` as a workaround: the
+PR's own copy of the workflow would then run, so a PR could rewrite the gate
+that judges it.
+
+Before relying on `verify-agent-artifacts` and `verify-ai-provenance`, verify the
+effective configuration: open a pull request and confirm both checks run and
+pass. While GitHub only evaluates the default policy, gate runs continue even
+without a matching policy, so a passing run alone does not prove the policy is
+right; where available, also review the **Policy insights** page (under
+**Policies** in the sidebar) for gate runs that were, or would have been,
+blocked. GitHub docs:
+[About Actions policies](https://docs.github.com/en/actions/concepts/about-actions-policies),
+[Governing execution of GitHub Actions workflows](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).
 
 ## Interlock
 
